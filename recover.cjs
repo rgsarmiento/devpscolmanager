@@ -1,0 +1,620 @@
+const fs = require('fs');
+
+const diff = `-const submitSoftwareConfig = () => {
+-    softwareForm.post(route('invoicing.software', props.client.id), {
+-        preserveScroll: true,
+-        onSuccess: () => closeModal(),
+-    });
+-};
+-
+-const resolutionEnv = ref('pruebas');
+-
+-const resolutionForm = useForm({
+-    type_document_id: 1,
+-    prefix: '',
+-    resolution: '',
+-    resolution_date: '',
+-    date_from: '',
+-    date_to: '',
+-    from: '',
+-    to: '',
+-    technical_key: '',
+-});
+-
+-const submitResolutionConfig = () => {
+-    resolutionForm.post(route('invoicing.resolution', props.client.id), {
+-        preserveScroll: true,
+-    });
+-};
+-
+-const certificateForm = useForm({
+-    certificate: null,
+-    password: '',
+-});
+-
+-const submitCertificateConfig = () => {
+-    certificateForm.post(route('invoicing.certificate', props.client.id), {
+-        preserveScroll: true,
+-        forceFormData: true, // Important for file upload
+-    });
+-};
+-
+-const copyToClipboard = (text) => {
+-    if (!text) return;
+-    
+-    // Fallback function using textarea
+-    const fallbackCopyTextToClipboard = (text) => {
+-        const textArea = document.createElement("textarea");
+-        textArea.value = text;
+-        
+-        // Avoid scrolling to bottom
+-        textArea.style.top = "0";
+-        textArea.style.left = "0";
+-        textArea.style.position = "fixed";
+-        
+-        document.body.appendChild(textArea);
+-        textArea.focus();
+-        textArea.select();
+-        
+-        try {
+-            const successful = document.execCommand('copy');
+-            if(successful) alert('Token copiado al portapapeles');
+-        } catch (err) {
+-            console.error('Fallback: Oops, unable to copy', err);
+-        }
+-        
+-        document.body.removeChild(textArea);
+-    }
+-    
+-    if (!navigator.clipboard) {
+-        fallbackCopyTextToClipboard(text);
+-        return;
+-    }
+-    
+-    navigator.clipboard.writeText(text).then(function() {
+-        alert('Token copiado al portapapeles');
+-    }, function(err) {
+-        console.error('Async: Could not copy text: ', err);
+-        fallbackCopyTextToClipboard(text);
+-    });
+-};
+-
+-const formatNumber = (num) => {
+-    if (num == null) return '0';
+-    return new Intl.NumberFormat('de-DE').format(num);
+-};
+-</script>
+-
+-<template>
+-    <AppLayout :title="client.name">
+-        <template #header>
+-            <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+-                <div>
+-                    <h2 class="font-bold text-3xl text-gray-900 tracking-tight flex items-center gap-3">
+-                        {{ client.name }}
+-                        <button @click="openEditClientModal" class="text-sm bg-gray-200 hover:bg-gray-300 text-gray-700 px-3 py-1 rounded-full flex items-center gap-1 transition">
+-                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path></svg>
+-                            Editar
+-                        </button>
+-                    </h2>
+-                    <p class="text-indigo-600 font-medium flex items-center mt-1">
+-                        <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H5a2 2 0 00-2 2v9a2 2 0 002 2h14a2 2 0 002-2V8a2 2 0 00-2-2h-5l-2-2z"></path></svg>
+-                        Expediente de Empresa #{{ client.id }}
+-                    </p>
+-                </div>
+-                <div class="flex gap-2 w-full md:w-auto">
+-                    <Link :href="route('clients.index')" class="flex-1 md:flex-none text-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition ease-in-out duration-150">
+-                        Volver al Listado
+-                    </Link>
+-                </div>
+-            </div>
+-        </template>
+-
+-        <div class="py-8 bg-gray-50 min-h-screen">
+-            <div class="max-w-7xl mx-auto sm:px-6 lg:px-8 space-y-8">
+-                
+-                <!-- Dashboard-style Summary -->
+-                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+-                    <!-- General Info -->
+-                    <div class="md:col-span-2 bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden group hover:shadow-md transition-shadow">
+-                        <div class="bg-slate-900 px-6 py-4 flex justify-between items-center">
+-                            <h3 class="text-white font-bold uppercase tracking-wider text-sm">Información Corporativa</h3>
+-                            <svg class="w-5 h-5 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path></svg>
+-                        </div>
+-                        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 gap-y-4 gap-x-8">
+-                            <div class="flex flex-col">
+-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Identificación (NIT)</span>
+-                                <span class="text-lg font-bold text-slate-800">{{ client.nit }}<span v-if="client.dv" class="text-indigo-600 font-mono">-{{ client.dv }}</span></span>
+-                            </div>
+-                            <div class="flex flex-col">
+-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Correo Electrónico</span>
+-                                <span class="text-gray-700 font-medium">{{ client.email }}</span>
+-                            </div>
+-                            <div class="flex flex-col">
+-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Contacto Telefónico</span>
+-                                <span class="text-gray-700 font-medium">{{ client.phone || 'Sin registro' }}</span>
+-                            </div>
+-                            <div class="flex flex-col">
+-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Distribuidor</span>
+-                                <span class="text-gray-700 font-medium">
+-                                    <span v-if="client.distributor" class="bg-indigo-100 text-indigo-800 px-2 py-0.5 rounded text-xs font-bold border border-indigo-200">
+-                                        {{ client.distributor.name }}
+-                                    </span>
+-                                    <span v-else class="text-emerald-600 font-bold text-xs bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200">
+-                                        Cliente Directo
+-                                    </span>
+-                                </span>
+-                            </div>
+-                            <div class="flex flex-col">
+-                                <span class="text-xs font-bold text-gray-400 uppercase tracking-widest">Dirección Principal</span>
+-                                <span class="text-gray-700 font-medium truncate" :title="client.address">{{ client.address }}</span>
+-                            </div>
+-                        </div>
+-                    </div>
+-
+-                    <!-- Invoicing Status Panel -->
+-                    <div class="bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden flex flex-col justify-between">
+-                        <div class="p-6">
+-                            <h3 class="text-slate-900 font-bold uppercase tracking-wider text-sm mb-4">Estado Facturación</h3>
+-                            <div v-if="client.invoicing_info?.api_token" class="space-y-4">
+-                                <div class="flex items-center text-green-600 bg-green-50 p-3 rounded-xl border border-green-100">
+-                                    <div class="bg-green-500 rounded-full p-1 mr-3">
+-                                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+-                                    </div>
+-                                    <span class="font-bold text-sm">Token Activo</span>
+-                                </div>
+-                                <div class="bg-gray-50 p-3 rounded-xl border border-gray-100 space-y-3">
+-                                    <div class="flex justify-between items-end text-[10px] font-bold text-gray-400 uppercase tracking-tighter">
+-                                        <div class="flex flex-col">
+-                                            <span>Consumo Folios</span>
+-                                            <span class="text-2xl text-slate-900 mt-1" v-if="planInfo">{{ formatNumber(planInfo.docs_left_absolut) }} <small class="text-[10px] text-indigo-500">disp.</small></span>
+-                                        </div>
+-                                    </div>
+-                                    <div class="w-full bg-gray-200 rounded-full h-2 overflow-hidden shadow-inner">
+-                                        <div v-if="planInfo" class="bg-indigo-600 h-2 transition-all duration-700 ease-out" :style="{ width: Math.max(0, Math.min(100, (1 - (planInfo.docs_left_absolut / planInfo.absolut_plan_documents)) * 100)) + '%' }"></div>
+-                                        <div v-else class="bg-indigo-600 h-2 w-0"></div>
+-                                    </div>
+-                                    <div class="flex flex-col gap-1" v-if="planInfo">
+-                                        <div class="text-[11px] font-bold text-slate-700">
+-                                            {{ formatNumber(planInfo.absolut_plan_documents - planInfo.docs_left_absolut) }} / {{ formatNumber(planInfo.absolut_plan_documents) }} <span class="text-gray-400 font-normal">utilizados</span>
+-                                        </div>
+-                                        <div class="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-gray-100">
+-                                            <div class="flex flex-col">
+-                                                <span class="text-[9px] text-gray-400 uppercase font-bold">Días Transc.</span>
+-                                                <span class="text-xs font-bold text-slate-700">{{ formatNumber(planInfo.dias_transcurridos) }}</span>
+-                                            </div>
+-                                            <div class="flex flex-col">
+-                                                <span class="text-[9px] text-gray-400 uppercase font-bold">Promedio diario</span>
+-                                                <span class="text-xs font-bold text-slate-700">{{ planInfo.promedio_folios_usados_por_dia }} f/d</span>
+-                                            </div>
+-                                            <div class="flex flex-col col-span-2 mt-1 p-2 bg-indigo-50 rounded-lg">
+-                                                <span class="text-[9px] text-indigo-400 uppercase font-bold">Proyección Restante</span>
+-                                                <span class="text-sm font-black text-indigo-700">{{ formatNumber(planInfo.dias_estimados_para_terminar) }} días estimados</span>
+-                                            </div>
+-                                        </div>
+-                                        <div class="flex items-center text-[9px] text-gray-500 font-medium mt-2">
+-                                            <svg class="w-3 h-3 mr-1 text-amber-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+-                                            Inicio Plan: {{ formatDate(planInfo.absolut_start_plan_date) }}
+-                                        </div>
+-                                    </div>
+-                                    <div v-else class="italic text-[10px] text-gray-400 animate-pulse">Consultando estado...</div>
+-                                </div>
+-                            </div>
+-                            <div v-else class="text-center py-4">
+-                                <div class="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-50 text-amber-500 mb-2">
+-                                    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+-                                </div>
+-                                <p class="text-xs text-gray-400 font-medium">Pendiente por Configurar</p>
+-                            </div>
+-                        </div>
+-                        <div class="bg-slate-50 border-t border-gray-100 px-6 py-4">
+-                             <a href="#config-facturacion" class="text-indigo-600 font-bold text-xs uppercase tracking-widest hover:text-indigo-800 transition block text-center">Ir a Configuración →</a>
+-                        </div>
+-                    </div>
+-                </div>
+-
+-                <!-- Licenses / Computers Card -->
+-                <div class="bg-white rounded-2xl shadow-xl border border-indigo-100 overflow-hidden">
+-                    <div class="px-8 py-6 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
+-                        <div class="flex items-center">
+-                            <div class="bg-indigo-600 rounded-lg p-2 mr-4 shadow-lg shadow-indigo-200">
+-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+-                            </div>
+-                            <div class="flex flex-col">
+-                                <h3 class="text-xl font-bold text-slate-900 uppercase tracking-tight">Estaciones y Licencias</h3>
+-                                <div class="text-[10px] text-indigo-600 font-bold uppercase tracking-widest mt-0.5">
+-                                    {{ computers.total }} Registradas en total
+-                                </div>
+-                            </div>
+-                        </div>
+-                        <div class="flex gap-2">
+-                            <Link :href="route('computers.index', { client_id: client.id })" class="inline-flex items-center px-4 py-2 bg-white border border-gray-300 rounded-md font-semibold text-xs text-gray-700 uppercase tracking-widest shadow-sm hover:bg-gray-50 transition border-b-2">
+-                                Ver Listado Independiente
+-                            </Link>
+-                            <PrimaryButton @click="openCreateModal" class="!bg-indigo-600 !hover:bg-indigo-700 !shadow-none ring-offset-2 ring-indigo-500">
+-                                + Nueva Licencia
+-                            </PrimaryButton>
+-                        </div>
+-                    </div>
+-
+-                    <div class="overflow-hidden">
+-                        <table class="min-w-full divide-y divide-gray-100">
+-                            <thead class="bg-white">
+-                                <tr>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Caja / ID</th>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Estación</th>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Licencia Key</th>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Vencimiento</th>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Estado</th>
+-                                    <th class="px-8 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Acciones</th>
+-                                </tr>
+-                            </thead>
+-                            <tbody class="divide-y divide-gray-50">
+-                                <tr v-for="pc in computers.data" :key="pc.id" class="hover:bg-indigo-50/20 transition group">
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <div class="flex items-center">
+-                                            <span class="w-8 h-8 rounded-full bg-slate-100 text-slate-600 flex items-center justify-center font-bold text-sm mr-3 border border-slate-200">{{ pc.box_number }}</span>
+-                                            <span class="text-xs font-mono text-gray-400">#{{ pc.id }}</span>
+-                                        </div>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <div class="text-sm font-bold text-slate-800">{{ pc.name }}</div>
+-                                        <div class="flex items-center gap-2 mt-1">
+-                                            <div class="text-[10px] text-gray-400 uppercase tracking-tighter">{{ pc.license_type }}</div>
+-                                            <span v-if="pc.license_transactions && pc.license_transactions.length > 0" class="text-[10px] bg-yellow-100 text-yellow-800 font-bold px-2 py-0.5 rounded border border-yellow-200">
+-                                                Pendiente
+-                                            </span>
+-                                        </div>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <div class="flex items-center">
+-                                            <code class="text-xs bg-slate-50 text-indigo-700 border border-indigo-100 px-2 py-1 rounded select-all font-bold tracking-widest">
+-                                                {{ pc.license_key }}
+-                                            </code>
+-                                        </div>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <div class="flex flex-col">
+-                                            <span class="text-sm font-medium" :class="new Date(pc.expiration_date) < new Date() ? 'text-red-500' : 'text-slate-700'">
+-                                                {{ formatDate(pc.expiration_date) }}
+-                                            </span>
+-                                            <span class="text-[10px] uppercase font-bold text-gray-300">Expira</span>
+-                                        </div>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <span v-if="pc.is_active" class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-green-100 text-green-700">
+-                                            <span class="w-2 h-2 rounded-full bg-green-500 mr-1.5 animate-pulse"></span>
+-                                            Activo
+-                                        </span>
+-                                        <span v-else class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold bg-red-100 text-red-700">
+-                                            Inactivo
+-                                        </span>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap text-right text-sm flex justify-end items-center gap-3">
+-                                        <button @click="openEditModal(pc)" class="text-indigo-600 hover:text-indigo-900 font-bold border-b-2 border-transparent hover:border-indigo-600 transition">Editar</button>
+-                                        
+-                                        <button @click="sendWhatsApp(pc)" class="text-green-500 hover:text-green-700 transition" title="Enviar Recordatorio WhatsApp">
+-                                            <svg class="w-5 h-5 inline" fill="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"></path></svg>
+-                                        </button>
+-
+-                                        <button @click="copyLicenseData(pc)" class="text-slate-500 hover:text-slate-700 transition" title="Copiar Datos">
+-                                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+-                                        </button>
+-
+-                                        <button @click="deleteComputer(pc)" class="text-red-400 hover:text-red-600 transition" title="Eliminar">
+-                                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+-                                        </button>
+-                                    </td>
+-                                </tr>
+-                                 <tr v-if="!computers.data.length">
+-                                    <td colspan="6" class="px-8 py-12 text-center text-gray-400 italic">
+-                                        No se han registrado estaciones de trabajo aún.
+-                                    </td>
+-                                </tr>
+-                            </tbody>
+-                        </table>
+-                    </div>
+-                    <!-- Paginación de Licencias -->
+-                    <div v-if="computers.data.length" class="px-8 py-4 bg-gray-50 border-t border-gray-100 flex justify-center">
+-                        <Pagination :links="computers.links" />
+-                    </div>
+-                </div>
+-
+-                <!-- Servicios Adicionales -->
+-                <div class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden mt-8 mb-8">
+-                    <div class="px-8 py-6 border-b border-slate-100 flex flex-col md:flex-row justify-between items-center gap-4">
+-                        <div class="flex items-center">
+-                            <h3 class="text-xl font-bold text-slate-800">Servicios Adicionales</h3>
+-                        </div>
+-                        <div class="flex gap-2">
+-                            <PrimaryButton @click="openServiceModal()" class="!bg-emerald-600 !hover:bg-emerald-700 !shadow-none ring-offset-2 ring-emerald-500">
+-                                + Nuevo Servicio
+-                            </PrimaryButton>
+-                        </div>
+-                    </div>
+-
+-                    <div class="overflow-hidden">
+-                        <table class="min-w-full divide-y divide-gray-100">
+-                            <thead class="bg-white">
+-                                <tr>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Servicio</th>
+-                                    <th class="px-8 py-4 text-left text-xs font-bold text-gray-400 uppercase tracking-widest">Vencimiento</th>
+-                                    <th class="px-8 py-4 text-right text-xs font-bold text-gray-400 uppercase tracking-widest">Acciones</th>
+-                                </tr>
+-                            </thead>
+-                            <tbody class="divide-y divide-gray-50">
+-                                <tr v-for="service in client.client_services" :key="'srv-'+service.id" class="hover:bg-emerald-50/20 transition group">
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <div class="text-sm font-bold text-slate-800">{{ service.name }}</div>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap">
+-                                        <div class="flex flex-col">
+-                                            <span class="text-sm font-medium" :class="new Date(service.expiration_date) < new Date() ? 'text-red-500' : 'text-slate-700'">
+-                                                {{ formatDate(service.expiration_date) }}
+-                                            </span>
+-                                        </div>
+-                                    </td>
+-                                    <td class="px-8 py-5 whitespace-nowrap text-right text-sm flex justify-end items-center gap-3">
+-                                        <button @click="openServiceModal(service)" class="text-emerald-600 hover:text-emerald-900 font-bold border-b-2 border-transparent hover:border-emerald-600 transition">Editar</button>
+-                                        <button @click="deleteService(service)" class="text-red-400 hover:text-red-600 transition" title="Eliminar">
+-                                            <svg class="w-5 h-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+-                                        </button>
+-                                    </td>
+-                                </tr>
+-                                 <tr v-if="!client.client_services || !client.client_services.length">
+-                                    <td colspan="3" class="px-8 py-12 text-center text-gray-400 italic">
+-                                        No se han registrado servicios adicionales.
+-                                    </td>
+-                                </tr>
+-                            </tbody>
+-                        </table>
+-                    </div>
+-                </div>
+-
+-                <!-- Facturación Electrónica Configuration (The "Big" Card) -->
+-                <div id="config-facturacion" class="bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden">
+-                    <div class="px-8 py-6 bg-slate-900 flex justify-between items-center">
+-                        <div class="flex items-center">
+-                            <div class="bg-indigo-600 rounded-lg p-2 mr-4 shadow-lg shadow-indigo-500/20">
+-                                <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+-                            </div>
+-                            <h3 class="text-xl font-bold text-white uppercase tracking-tight">Ecosistema de Facturación Electrónica</h3>
+-                        </div>
+-                        <div v-if="client.invoicing_info?.api_token" class="hidden md:flex items-center gap-6">
+-                            <div class="text-right">
+-                                <div class="text-[10px] text-gray-400 uppercase font-bold tracking-widest">Company ID</div>
+-                                <div class="text-white font-mono text-sm">{{ client.invoicing_info.company_id }}</div>
+-                            </div>
+-                            <div class="text-right">
+-                                <div class="text-[10px] text-gray-400 uppercase font-bold tracking-widest">API Token</div>
+-                                <div class="flex items-center gap-2">
+-                                    <div class="text-white font-mono text-[10px] bg-slate-800 px-2 py-1 rounded border border-slate-700 max-w-[200px] truncate">
+-                                        {{ client.invoicing_info.api_token }}
+-                                    </div>
+-                                    <button type="button" @click="copyToClipboard(client.invoicing_info.api_token)" class="bg-indigo-600 p-1.5 rounded text-white hover:bg-indigo-700 transition" title="Copiar Token">
+-                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 5H6a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2v-1M8 5a2 2 0 002 2h2a2 2 0 002-2M8 5a2 2 0 012-2h2a2 2 0 012 2m0 0h2a2 2 0 012 2v3m2 4H10m0 0l3-3m-3 3l3 3"></path></svg>
+-                                    </button>
+-                                </div>
+-                            </div>
+-                        </div>
+-                    </div>
+-
+-                    <div class="p-8">
+-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-x-12 gap-y-12">
+-                            
+-                            <!-- STEP 1: COMPANY & MAIL -->
+-                            <div class="md:col-span-2">
+-                                <div class="flex items-center mb-6">
+-                                    <span class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3 shadow-lg shadow-indigo-100">1</span>
+-                                    <h4 class="text-lg font-bold text-slate-800 uppercase tracking-wide">Configuración de Compañía y Envíos</h4>
+-                                </div>
+-                                
+-                                <form @submit.prevent="submitCompanyConfig" class="space-y-8">
+-                                    <!-- DATOS EMPRESA -->
+-                                    <div class="bg-indigo-50/30 p-6 rounded-2xl border border-indigo-100">
+-                                        <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-[0.2em] mb-4">Información Corporativa y DIAN</p>
+-                                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+-                                            <div class="md:col-span-3">
+-                                                <InputLabel value="Razón Social / Nombre" />
+-                                                <TextInput v-model="companyForm.business_name" class="w-full text-sm" required />
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="NIT" />
+-                                                <div class="flex gap-1">
+-                                                    <TextInput v-model="companyForm.nit" class="w-full text-sm" required />
+-                                                    <TextInput v-model="companyForm.dv" class="w-12 text-sm text-center" placeholder="DV" />
+-                                                </div>
+-                                            </div>
+-                                            
+-                                            <div class="md:col-span-2">
+-                                                <InputLabel value="Dirección" />
+-                                                <TextInput v-model="companyForm.address" class="w-full text-sm" />
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="Teléfono" />
+-                                                <TextInput v-model="companyForm.phone" class="w-full text-sm" />
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="Email" />
+-                                                <TextInput v-model="companyForm.email" type="email" class="w-full text-sm" />
+-                                            </div>
+-
+-                                            <div>
+-                                                <InputLabel value="Matrícula Mercantil" />
+-                                                <TextInput v-model="companyForm.merchant_registration" class="w-full text-sm" />
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="Tipo Identificación" />
+-                                                <select v-model="companyForm.type_document_identification_id" class="w-full border-gray-200 rounded-lg text-sm focus:ring-indigo-500 mt-1">
+-                                                    <option v-for="item in catalogs.document_types" :key="item.id" :value="item.id">{{ item.name }}</option>
+-                                                </select>
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="Organización" />
+-                                                <select v-model="companyForm.type_organization_id" class="w-full border-gray-200 rounded-lg text-sm focus:ring-indigo-500 mt-1">
+-                                                    <option v-for="item in catalogs.organizations" :key="item.id" :value="item.id">{{ item.name }}</option>
+-                                                </select>
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="Régimen" />
+-                                                <select v-model="companyForm.type_regime_id" class="w-full border-gray-200 rounded-lg text-sm focus:ring-indigo-500 mt-1">
+-                                                    <option v-for="item in catalogs.regimes" :key="item.id" :value="item.id">{{ item.name }}</option>
+-                                                </select>
+-                                            </div>
+-                                            
+-                                            <div class="md:col-span-2">
+-                                                <InputLabel value="Municipio" />
+-                                                <select v-model="companyForm.municipality_id" class="w-full border-gray-200 rounded-lg text-sm focus:ring-indigo-500 mt-1">
+-                                                    <option v-for="item in catalogs.municipalities" :key="item.id" :value="item.id">{{ item.name }}</option>
+-                                                </select>
+-                                            </div>
+-                                            <div class="md:col-span-2">
+-                                                <InputLabel value="Responsabilidad (Tipo)" />
+-                                                <select v-model="companyForm.type_liability_id" class="w-full border-gray-200 rounded-lg text-sm focus:ring-indigo-500 mt-1">
+-                                                    <option v-for="item in catalogs.liabilities" :key="item.id" :value="item.id">{{ item.name }}</option>
+-                                                </select>
+-                                            </div>
+-
+-                                            <!-- PLAN DE FOLIOS -->
+-                                            <div class="md:col-span-4 mt-4 pt-4 border-t border-indigo-100/50">
+-                                                <p class="text-[10px] font-bold text-indigo-600 uppercase tracking-[0.2em] mb-4">Plan de Folios</p>
+-                                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+-                                                    <div>
+-                                                        <InputLabel value="Cantidad de Folios (Plan)" />
+-                                                        <TextInput v-model="companyForm.plan_documents" type="number" class="w-full text-sm" placeholder="Ej: 1500" />
+-                                                    </div>
+-                                                    <div>
+-                                                        <InputLabel value="Fecha Inicio del Plan" />
+-                                                        <TextInput v-model="companyForm.plan_start_date" type="datetime-local" step="1" class="w-full text-sm" />
+-                                                        <p class="text-[10px] text-gray-400 mt-1">Formato: AAAA-MM-DD HH:MM:SS</p>
+-                                                    </div>
+-                                                </div>
+-                                            </div>
+-                                        </div>
+-                                    </div>
+-
+-                                    <!-- CORREOS -->
+-                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+-                                        <div class="space-y-4">
+-                                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Servidor de Salida (SMTP)</p>
+-                                            <div class="grid grid-cols-2 gap-4">
+-                                                <div class="col-span-2">
+-                                                    <InputLabel value="Host SMTP" />
+-                                                    <TextInput v-model="companyForm.mail_host" class="w-full text-sm" placeholder="smtp.gmail.com" />
+-                                                </div>
+-                                                <div>
+-                                                    <InputLabel value="Puerto" />
+-                                                    <TextInput v-model="companyForm.mail_port" class="w-full text-sm" placeholder="587" />
+-                                                </div>
+-                                                <div>
+-                                                    <InputLabel value="Encriptación" />
+-                                                    <select v-model="companyForm.mail_encryption" class="w-full border-gray-200 rounded-lg text-sm mt-1">
+-                                                        <option value="tls">TLS</option>
+-                                                        <option value="ssl">SSL</option>
+-                                                    </select>
+-                                                </div>
+-                                                <div class="col-span-2">
+-                                                    <InputLabel value="Usuario Correo (Username)" />
+-                                                    <TextInput v-model="companyForm.mail_username" class="w-full text-sm" placeholder="usuario@gmail.com" />
+-                                                </div>
+-                                                <div class="col-span-2">
+-                                                    <InputLabel value="Contraseña Correo" />
+-                                                    <TextInput v-model="companyForm.mail_password" type="text" class="w-full text-sm" />
+-                                                </div>
+-                                                <div>
+-                                                    <InputLabel value="Email Remitente (From Address)" />
+-                                                    <TextInput v-model="companyForm.mail_from_address" class="w-full text-sm" placeholder="usuario@gmail.com" />
+-                                                </div>
+-                                                <div>
+-                                                    <InputLabel value="Nombre Remitente (From Name)" />
+-                                                    <TextInput v-model="companyForm.mail_from_name" class="w-full text-sm" placeholder="Facturación Nodo" />
+-                                                </div>
+-                                            </div>
+-                                        </div>
+-                                        <div class="space-y-4">
+-                                            <p class="text-[10px] font-bold text-slate-400 uppercase tracking-[0.2em] mb-4">Recepción (IMAP)</p>
+-                                            <div class="grid grid-cols-2 gap-4">
+-                                                <div class="col-span-2">
+-                                                    <InputLabel value="Servidor IMAP" />
+-                                                    <TextInput v-model="companyForm.imap_server" class="w-full text-sm" placeholder="imap.gmail.com" />
+-                                                </div>
+-                                                <div>
+-                                                    <InputLabel value="Puerto" />
+-                                                    <TextInput v-model="companyForm.imap_port" class="w-full text-sm" placeholder="993" />
+-                                                </div>
+-                                                <div>
+-                                                    <InputLabel value="Encriptación" />
+-                                                    <select v-model="companyForm.imap_encryption" class="w-full border-gray-200 rounded-lg text-sm mt-1">
+-                                                        <option value="ssl">SSL</option>
+-                                                        <option value="tls">TLS</option>
+-                                                    </select>
+-                                                </div>
+-                                                <div class="col-span-2">
+-                                                    <InputLabel value="Usuario IMAP" />
+-                                                    <TextInput v-model="companyForm.imap_user" class="w-full text-sm" placeholder="usuario@gmail.com" />
+-                                                </div>
+-                                                <div class="col-span-2">
+-                                                    <InputLabel value="Contraseña IMAP" />
+-                                                    <TextInput v-model="companyForm.imap_password" type="text" class="w-full text-sm" />
+-                                                </div>
+-                                            </div>
+-                                        </div>
+-                                    </div>
+-
+-                                    <div class="pt-6 border-t border-gray-100 text-right">
+-                                        <PrimaryButton :disabled="companyForm.processing" class="!bg-slate-900 !hover:bg-slate-800">
+-                                            {{ client.invoicing_info?.api_token ? 'Sincronizar Datos corporativos' : 'Generar Token y Registro' }}
+-                                        </PrimaryButton>
+-                                    </div>
+-                                </form>
+-                            </div>
+-
+-                            <hr class="md:col-span-2 border-slate-100">
+-
+-                            <!-- STEP 2 & 4 (Software & Cert) -->
+-                            <div class="space-y-12" :class="{ 'opacity-40 select-none grayscale': !client.invoicing_info?.api_token }">
+-                                <!-- STEP 2 -->
+-                                <div>
+-                                    <div class="flex items-center mb-6">
+-                                        <span class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3">2</span>
+-                                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-widest">Infraestructura de Software</h4>
+-                                    </div>
+-                                    <form @submit.prevent="submitSoftwareConfig" class="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+-                                        <div class="grid grid-cols-2 gap-4">
+-                                            <div>
+-                                                <InputLabel value="Software ID" />
+-                                                <div class="flex gap-2">
+-                                                    <TextInput v-model="softwareForm.id" class="w-full text-xs font-mono" required />
+-                                                    <PrimaryButton type="button" @click="syncSoftware" :disabled="isSyncingSoftware" class="!bg-emerald-600 px-3 shrink-0" title="Sincronizar con DB Global">
+-                                                        <svg v-if="isSyncingSoftware" class="animate-spin h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+-                                                        <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+-                                                    </PrimaryButton>
+-                                                </div>
+-                                            </div>
+-                                            <div>
+-                                                <InputLabel value="PIN de Seguridad" />
+-                                                <TextInput v-model="softwareForm.pin" class="w-full text-xs" required />
+-                                            </div>
+-                                        </div>
+-                                        <PrimaryButton :disabled="softwareForm.processing || !client.invoicing_info?.api_token" class="w-full !justify-center">Asociar Software</PrimaryButton>
+-                                    </form>
+-                                </div>
+-
+-                                <!-- STEP 4 -->
+-                                <div>
+-                                    <div class="flex items-center mb-6">
+-                                        <span class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3">3</span>
+-                                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-widest">Firma Digital (.p12)</h4>
+-                                    </div>`;
+
+const original = fs.readFileSync('resources/js/Pages/Clients/Show.vue', 'utf8');
+const lines = original.split('\n');
+
+let topPart = lines.slice(0, 330).join('\n');
+let bottomPart = lines.slice(330).join('\n'); 
+
+let cleanDiff = diff.split('\n').map(line => line.startsWith('-') ? line.substring(1) : line).join('\n');
+
+const newContent = topPart + '\n' + cleanDiff + bottomPart;
+fs.writeFileSync('resources/js/Pages/Clients/Show.vue', newContent);
+console.log('Restored Show.vue!');
