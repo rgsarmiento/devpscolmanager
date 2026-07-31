@@ -18,17 +18,17 @@ class ComputerController extends Controller
         // Distributor Scoping
         if (auth()->user()->isDistributor()) {
             $query->whereHas('client', function($q) {
-                $q->where('user_id', auth()->id());
+                $q->where('distributor_id', auth()->user()->distributor_id);
             });
         }
 
-        // Filters
         if ($request->filled('search')) {
             $search = $request->search;
             $query->where(function($q) use ($search) {
                 $q->where('name', 'like', "%{$search}%")
                   ->orWhere('license_key', 'like', "%{$search}%")
                   ->orWhere('box_number', 'like', "%{$search}%")
+                  ->orWhere('pin', 'like', "%{$search}%")
                   ->orWhere('observation', 'like', "%{$search}%");
             });
         }
@@ -40,14 +40,23 @@ class ComputerController extends Controller
         // Sorting
         $sort = $request->input('sort', 'id');
         $direction = $request->input('direction', 'desc');
-        $query->orderBy($sort, $direction);
+        
+        if ($sort === 'client_name') {
+            $query->join('clients', 'computers.client_id', '=', 'clients.id')
+                  ->select('computers.*')
+                  ->orderBy('clients.name', $direction);
+        } elseif ($sort === 'days_remaining') {
+            $query->orderBy('expiration_date', $direction);
+        } else {
+            $query->orderBy($sort, $direction);
+        }
 
         $computers = $query->paginate($request->integer('per_page', 15))
             ->withQueryString()
             ->through(function($computer) {
                 $now = now();
                 $expiration = \Carbon\Carbon::parse($computer->expiration_date);
-                $computer->days_remaining = $now->diffInDays($expiration, false);
+                $computer->days_remaining = (int) $now->diffInDays($expiration, false);
                 return $computer;
             });
 
@@ -55,8 +64,9 @@ class ComputerController extends Controller
             'computers' => $computers,
             'filters' => $request->only(['search', 'sort', 'direction', 'per_page', 'client_id']),
             'clients' => auth()->user()->isDistributor() 
-                ? \App\Models\Client::where('user_id', auth()->id())->get(['id', 'name'])
+                ? \App\Models\Client::where('distributor_id', auth()->user()->distributor_id)->get(['id', 'name'])
                 : \App\Models\Client::all(['id', 'name']),
+            'isAdmin' => auth()->user()->isAdmin(),
         ]);
     }
 

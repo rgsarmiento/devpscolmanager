@@ -29,7 +29,7 @@ Route::middleware([
         Route::resource('clients', \App\Http\Controllers\ClientController::class)->except(['index', 'show']);
         
         Route::post('/computers/generate-license', [\App\Http\Controllers\ComputerController::class, 'generateLicense'])->name('computers.generate-license');
-        Route::resource('computers', \App\Http\Controllers\ComputerController::class)->except(['create', 'edit', 'show']);
+        Route::resource('computers', \App\Http\Controllers\ComputerController::class)->except(['index', 'create', 'edit', 'show']);
         
         // Services
         Route::post('/clients/{client}/services', [\App\Http\Controllers\ClientServiceController::class, 'store'])->name('client-services.store');
@@ -57,6 +57,7 @@ Route::middleware([
     Route::patch('/clients/{client}/toggle-environment', [\App\Http\Controllers\ClientController::class, 'toggleEnvironment'])->name('clients.toggle-environment');
     Route::patch('/clients/{client}/whatsapp-contact', [\App\Http\Controllers\ClientController::class, 'updateWhatsappContact'])->name('clients.whatsapp-contact');
     Route::resource('clients', \App\Http\Controllers\ClientController::class)->only(['index', 'show']);
+    Route::get('/computers', [\App\Http\Controllers\ComputerController::class, 'index'])->name('computers.index');
 
     // DIAN Catalogs
     Route::apiResource('type-document-identifications', \App\Http\Controllers\TypeDocumentIdentificationController::class)->only(['index', 'show']);
