@@ -378,6 +378,7 @@ const companyForm = useForm({
     // IMAP Config from DB
     imap_server: props.client.invoicing_info?.imap_server || 'imap.gmail.com',
     imap_port: props.client.invoicing_info?.imap_port || '993',
+    generate_pending_folios: false,
     imap_user: props.client.invoicing_info?.imap_user || props.client.email || '',
     imap_password: props.client.invoicing_info?.imap_password || '',
     imap_encryption: props.client.invoicing_info?.imap_encryption || 'ssl',
@@ -396,9 +397,9 @@ const estimatedFolioCost = ref(0);
 
 const submitCompanyConfig = () => {
     const oldFolios = parseInt(props.client.invoicing_info?.plan_documents) || 0;
-    const newFolios = parseInt(companyForm.plan_documents) || 0;
+    const newFolios = parseInt(planForm.plan_documents) || 0;
     const oldDate = props.client.invoicing_info?.plan_start_date ? props.client.invoicing_info.plan_start_date.split('.')[0].replace(' ', 'T') : '';
-    const newDate = companyForm.plan_start_date || '';
+    const newDate = planForm.plan_start_date || '';
     
     if ((newFolios > 0 && oldFolios !== newFolios) || (newFolios > 0 && oldDate !== newDate)) {
         if (newFolios >= 1000000) {
@@ -421,7 +422,11 @@ const confirmFolioSync = (generatePending) => {
 };
 
 const executeCompanySync = () => {
-    companyForm.post(route('invoicing.company', props.client.id), {
+    companyForm.transform((data) => ({
+        ...data,
+        plan_documents: planForm.plan_documents,
+        plan_start_date: planForm.plan_start_date,
+    })).post(route('invoicing.company', props.client.id), {
         preserveScroll: true,
     });
 };

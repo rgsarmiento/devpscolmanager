@@ -9,19 +9,6 @@ class InvoicingInfo extends Model
 {
     protected $guarded = [];
 
-    protected $fillable = [
-        'client_id',
-        'api_token',
-        'software_identifier',
-        'software_pin',
-        'plan_documents',
-        'folios_total',
-        'folios_remaining',
-        'plan_start_date',
-        'certificate_expiration_date',
-        'certificate_password'
-    ];
-
     protected $casts = [
         'plan_start_date' => 'datetime',
         'certificate_expiration_date' => 'datetime',
