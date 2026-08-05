@@ -82,76 +82,96 @@ class InvoicingController extends Controller
             // Service expects $payload, $nit, $dv
             $response = $this->billingService->configCompany($payload, $data['nit'], $data['dv']);
             
-            // Save token AND mail config settings
-            if (isset($response['token']) && isset($response['company']['id'])) {
-                 // Update Client Data with latest info from form
-                 $client->update([
-                    'name' => $data['business_name'] ?? $client->name,
-                    'merchant_registration' => $data['merchant_registration'] ?? $client->merchant_registration,
-                    'type_document_identification_id' => $data['type_document_identification_id'] ?? $client->type_document_identification_id,
-                    'type_organization_id' => $data['type_organization_id'] ?? $client->type_organization_id,
-                    'type_regime_id' => $data['type_regime_id'] ?? $client->type_regime_id,
-                    'type_liability_id' => $data['type_liability_id'] ?? $client->type_liability_id,
-                    'municipality_id' => $data['municipality_id'] ?? $client->municipality_id,
-                    'address' => $data['address'] ?? $client->address,
-                    'phone' => $data['phone'] ?? $client->phone,
-                    'email' => $data['email'] ?? $client->email,
-                    'dv' => $data['dv'] ?? $client->dv,
-                 ]);
+            // Extract token and company_id flexibly
+            $token = $response['token'] ?? $response['api_token'] ?? $client->invoicingInfo?->api_token;
+            $companyId = $response['company']['id'] 
+                ?? $response['company_id'] 
+                ?? (is_array($response['company'] ?? null) ? ($response['company']['id'] ?? null) : null)
+                ?? (is_numeric($response['company'] ?? null) ? $response['company'] : null)
+                ?? $client->invoicingInfo?->company_id;
 
-                 $oldPlanDocuments = $client->invoicingInfo->plan_documents ?? 0;
-                 $newPlanDocuments = $data['plan_documents'] ?? 0;
-                 
-                 $oldPlanDate = isset($client->invoicingInfo->plan_start_date) ? date('Y-m-d H:i:s', strtotime($client->invoicingInfo->plan_start_date)) : '';
-                 $newPlanDate = isset($data['plan_start_date']) ? date('Y-m-d H:i:s', strtotime($data['plan_start_date'])) : '';
-
-                 if (($oldPlanDocuments != $newPlanDocuments || $oldPlanDate != $newPlanDate) && $newPlanDocuments > 0 && $request->boolean('generate_pending_folios')) {
-                     $type = $newPlanDocuments >= 1000000 ? 'unlimited_folios' : 'folios';
-                     $hasPending = \App\Models\LicenseTransaction::where('client_id', $client->id)
-                         ->whereIn('type', ['folios', 'unlimited_folios'])
-                         ->where('status', 'pending')
-                         ->first();
-
-                     if ($hasPending) {
-                         $hasPending->update([
-                             'folios_count' => $newPlanDocuments,
-                             'type' => $type
-                         ]);
-                     } else {
-                         \App\Models\LicenseTransaction::create([
-                             'client_id' => $client->id,
-                             'distributor_id' => $client->distributor_id,
-                             'type' => $type,
-                             'folios_count' => $newPlanDocuments,
-                             'status' => 'pending'
-                         ]);
-                     }
-                 }
-
-                 $client->invoicingInfo()->updateOrCreate(
-                    ['client_id' => $client->id],
-                    [
-                        'api_token' => $response['token'],
-                        'company_id' => $response['company']['id'],
-                        'plan_documents' => $data['plan_documents'] ?? null,
-                        'plan_start_date' => $data['plan_start_date'] ?? null,
-                        // Save Configs
-                        'mail_host' => $data['mail_host'] ?? null,
-                        'mail_port' => $data['mail_port'] ?? null,
-                        'mail_username' => $data['mail_username'] ?? null,
-                        'mail_password' => $data['mail_password'] ?? null,
-                        'mail_encryption' => $data['mail_encryption'] ?? null,
-                        'mail_from_address' => $data['mail_from_address'] ?? null,
-                        'mail_from_name' => $data['mail_from_name'] ?? null,
-
-                        'imap_server' => $data['imap_server'] ?? null,
-                        'imap_port' => $data['imap_port'] ?? null,
-                        'imap_user' => $data['imap_user'] ?? null,
-                        'imap_password' => $data['imap_password'] ?? null,
-                        'imap_encryption' => $data['imap_encryption'] ?? null,
-                    ]
-                 );
+            // Fallback: If company_id is still missing, query external DB by NIT
+            if (!$companyId && !empty($data['nit'])) {
+                try {
+                    $extCompany = \Illuminate\Support\Facades\DB::connection('api_external')
+                        ->table('companies')
+                        ->where('identification_number', $data['nit'])
+                        ->first();
+                    if ($extCompany) {
+                        $companyId = $extCompany->id;
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Could not query company_id from api_external: ' . $e->getMessage());
+                }
             }
+
+            // Update Client Data with latest info from form
+            $client->update([
+                'name' => $data['business_name'] ?? $client->name,
+                'merchant_registration' => $data['merchant_registration'] ?? $client->merchant_registration,
+                'type_document_identification_id' => $data['type_document_identification_id'] ?? $client->type_document_identification_id,
+                'type_organization_id' => $data['type_organization_id'] ?? $client->type_organization_id,
+                'type_regime_id' => $data['type_regime_id'] ?? $client->type_regime_id,
+                'type_liability_id' => $data['type_liability_id'] ?? $client->type_liability_id,
+                'municipality_id' => $data['municipality_id'] ?? $client->municipality_id,
+                'address' => $data['address'] ?? $client->address,
+                'phone' => $data['phone'] ?? $client->phone,
+                'email' => $data['email'] ?? $client->email,
+                'dv' => $data['dv'] ?? $client->dv,
+            ]);
+
+            $oldPlanDocuments = $client->invoicingInfo->plan_documents ?? 0;
+            $newPlanDocuments = $data['plan_documents'] ?? 0;
+            
+            $oldPlanDate = isset($client->invoicingInfo->plan_start_date) ? date('Y-m-d H:i:s', strtotime($client->invoicingInfo->plan_start_date)) : '';
+            $newPlanDate = isset($data['plan_start_date']) ? date('Y-m-d H:i:s', strtotime($data['plan_start_date'])) : '';
+
+            if (($oldPlanDocuments != $newPlanDocuments || $oldPlanDate != $newPlanDate) && $newPlanDocuments > 0 && $request->boolean('generate_pending_folios')) {
+                $type = $newPlanDocuments >= 1000000 ? 'unlimited_folios' : 'folios';
+                $hasPending = \App\Models\LicenseTransaction::where('client_id', $client->id)
+                    ->whereIn('type', ['folios', 'unlimited_folios'])
+                    ->where('status', 'pending')
+                    ->first();
+
+                if ($hasPending) {
+                    $hasPending->update([
+                        'folios_count' => $newPlanDocuments,
+                        'type' => $type
+                    ]);
+                } else {
+                    \App\Models\LicenseTransaction::create([
+                        'client_id' => $client->id,
+                        'distributor_id' => $client->distributor_id,
+                        'type' => $type,
+                        'folios_count' => $newPlanDocuments,
+                        'status' => 'pending'
+                    ]);
+                }
+            }
+
+            $client->invoicingInfo()->updateOrCreate(
+                ['client_id' => $client->id],
+                [
+                    'api_token' => $token,
+                    'company_id' => $companyId,
+                    'plan_documents' => $data['plan_documents'] ?? $client->invoicingInfo?->plan_documents,
+                    'plan_start_date' => $data['plan_start_date'] ?? $client->invoicingInfo?->plan_start_date,
+                    // Save Configs
+                    'mail_host' => $data['mail_host'] ?? null,
+                    'mail_port' => $data['mail_port'] ?? null,
+                    'mail_username' => $data['mail_username'] ?? null,
+                    'mail_password' => $data['mail_password'] ?: ($client->invoicingInfo?->mail_password ?? null),
+                    'mail_encryption' => $data['mail_encryption'] ?? null,
+                    'mail_from_address' => $data['mail_from_address'] ?? null,
+                    'mail_from_name' => $data['mail_from_name'] ?? null,
+
+                    'imap_server' => $data['imap_server'] ?? null,
+                    'imap_port' => $data['imap_port'] ?? null,
+                    'imap_user' => $data['imap_user'] ?? null,
+                    'imap_password' => $data['imap_password'] ?: ($client->invoicingInfo?->imap_password ?? null),
+                    'imap_encryption' => $data['imap_encryption'] ?? null,
+                ]
+            );
 
             return back()->with('flash.banner', 'Compañía Configurada. Token Recibido y Configuraciones Guardadas.');
         } catch (\Exception $e) {
@@ -222,12 +242,31 @@ class InvoicingController extends Controller
         ]);
 
         try {
-            $this->billingService->configSoftware($token, $validated['id'], $validated['pin']);
+            $response = $this->billingService->configSoftware($token, $validated['id'], $validated['pin']);
             
+            $companyId = $response['software']['company_id'] 
+                ?? $response['company_id'] 
+                ?? $client->invoicingInfo?->company_id;
+
+            if (!$companyId && !empty($client->nit)) {
+                try {
+                    $extCompany = \Illuminate\Support\Facades\DB::connection('api_external')
+                        ->table('companies')
+                        ->where('identification_number', $client->nit)
+                        ->first();
+                    if ($extCompany) {
+                        $companyId = $extCompany->id;
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Could not query company_id from api_external in configSoftware: ' . $e->getMessage());
+                }
+            }
+
             if ($client->invoicingInfo) {
                 $client->invoicingInfo->update([
                     'software_identifier' => $validated['id'],
                     'software_pin' => $validated['pin'],
+                    'company_id' => $companyId,
                 ]);
             }
 

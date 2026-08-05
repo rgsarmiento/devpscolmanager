@@ -272,10 +272,31 @@ class ClientController extends Controller
 
             $response = $billingService->configCompany($payload, $nit, $dv);
 
-            if (isset($response['token']) && isset($response['company']['id'])) {
+            $token = $response['token'] ?? $response['api_token'] ?? null;
+            $companyId = $response['company']['id'] 
+                ?? $response['company_id'] 
+                ?? (is_array($response['company'] ?? null) ? ($response['company']['id'] ?? null) : null)
+                ?? (is_numeric($response['company'] ?? null) ? $response['company'] : null)
+                ?? null;
+
+            if (!$companyId && !empty($nit)) {
+                try {
+                    $extCompany = \Illuminate\Support\Facades\DB::connection('api_external')
+                        ->table('companies')
+                        ->where('identification_number', $nit)
+                        ->first();
+                    if ($extCompany) {
+                        $companyId = $extCompany->id;
+                    }
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('Could not query company_id from api_external: ' . $e->getMessage());
+                }
+            }
+
+            if ($token || $companyId) {
                 $info->update([
-                    'api_token' => $response['token'],
-                    'company_id' => $response['company']['id'],
+                    'api_token' => $token,
+                    'company_id' => $companyId,
                 ]);
             }
 
