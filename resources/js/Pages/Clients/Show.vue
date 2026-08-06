@@ -647,7 +647,23 @@ const submitTestSet = async () => {
         });
         testSetResultData.value = response.data;
     } catch (error) {
-        testSetResultData.value = error.response?.data || { success: false, status_description: "Error de conexión o validación" };
+        let errorMsg = "Error de conexión o validación al contactar el servidor.";
+        if (error.response?.status === 422 && error.response?.data?.errors) {
+            errorMsg = Object.values(error.response.data.errors).flat().join(" ");
+        } else if (error.response?.data?.status_description) {
+            errorMsg = error.response.data.status_description;
+        } else if (error.response?.data?.message) {
+            errorMsg = error.response.data.message;
+        } else if (typeof error.response?.data === 'string') {
+            errorMsg = "Error del servidor (Código " + error.response.status + "). Revise los logs.";
+        }
+        
+        testSetResultData.value = { 
+            success: false, 
+            status_description: errorMsg,
+            zip_key: null,
+            messages: []
+        };
     } finally {
         testSetForm.processing = false;
     }

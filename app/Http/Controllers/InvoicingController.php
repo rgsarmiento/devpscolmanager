@@ -533,7 +533,7 @@ class InvoicingController extends Controller
             }
             
             if (!$zipKey) {
-                return response()->json(['success' => false, 'status_description' => 'No se pudo obtener el ZipKey de la respuesta de la DIAN.', 'messages' => [], 'zip_key' => null], 400);
+                return response()->json(['success' => false, 'status_description' => 'No se pudo obtener el ZipKey. Respuesta API: ' . json_encode($invoiceResponse), 'messages' => [], 'zip_key' => null], 400);
             }
 
             // Step 2: Check Zip Status
@@ -542,7 +542,7 @@ class InvoicingController extends Controller
             $dianResult = $statusResponse['ResponseDian']['Envelope']['Body']['GetStatusZipResponse']['GetStatusZipResult']['DianResponse'] ?? null;
             
             if (!$dianResult) {
-                return response()->json(['success' => false, 'status_description' => 'No se pudo parsear la respuesta de estado de la DIAN.', 'messages' => [], 'zip_key' => null], 400);
+                return response()->json(['success' => false, 'status_description' => 'No se pudo parsear la respuesta de estado. Respuesta API: ' . json_encode($statusResponse), 'messages' => [], 'zip_key' => null], 400);
             }
 
             $isValid = ($dianResult['IsValid'] === 'true' || $dianResult['IsValid'] === true);
