@@ -217,4 +217,34 @@ class BillingApiService
 
         return DB::connection('api_external')->select($query);
     }
+
+    public function sendTestSet(string $token, string $testSetId, array $invoiceData)
+    {
+        $response = \Illuminate\Support\Facades\Http::withToken($token)
+            ->acceptJson()
+            ->withoutVerifying()
+            ->withoutRedirecting()
+            ->post("{$this->baseUrl}/invoice/{$testSetId}", $invoiceData);
+
+        if (!$response->successful()) {
+            throw new \Exception("Error al enviar TestSet: " . $response->body());
+        }
+
+        return $response->json();
+    }
+
+    public function checkZipStatus(string $token, string $zipKey)
+    {
+        $response = \Illuminate\Support\Facades\Http::withToken($token)
+            ->acceptJson()
+            ->withoutVerifying()
+            ->withoutRedirecting()
+            ->post("{$this->baseUrl}/status/zip/{$zipKey}");
+
+        if (!$response->successful()) {
+            throw new \Exception("Error al consultar ZipKey: " . $response->body());
+        }
+
+        return $response->json();
+    }
 }

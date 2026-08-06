@@ -630,6 +630,24 @@ const submitCertificateConfig = () => {
     });
 };
 
+const testSetForm = useForm({
+    test_set_id: props.client.invoicing_info?.test_set_id || '',
+    test_set_consecutive: props.client.invoicing_info?.test_set_consecutive || 990000001,
+});
+
+const testSetResultData = ref(null);
+
+const submitTestSet = () => {
+    testSetForm.post(route('invoicing.test-set', props.client.id), {
+        preserveScroll: true,
+        onSuccess: (page) => {
+            if (page.props.flash?.testSetResult) {
+                testSetResultData.value = page.props.flash.testSetResult;
+            }
+        }
+    });
+};
+
 const copyToClipboard = (text) => {
     if (!text) return;
     
@@ -1265,6 +1283,45 @@ const formatNumber = (num, decimals = 0) => {
                                         </div>
                                         <PrimaryButton :disabled="certificateForm.processing || !client.invoicing_info?.api_token" class="w-full !justify-center">Cargar Certificado</PrimaryButton>
                                     </form>
+                                </div>
+
+                                <!-- HABILITACION DIAN -->
+                                <div class="mt-12">
+                                    <div class="flex items-center mb-6">
+                                        <span class="bg-indigo-600 text-white w-8 h-8 rounded-full flex items-center justify-center font-bold mr-3">H</span>
+                                        <h4 class="text-sm font-bold text-slate-800 uppercase tracking-widest">Habilitación DIAN (Set de Pruebas)</h4>
+                                    </div>
+                                    
+                                    <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100 space-y-4">
+                                        <form @submit.prevent="submitTestSet" class="space-y-4">
+                                            <div>
+                                                <InputLabel value="TestSetId" />
+                                                <TextInput v-model="testSetForm.test_set_id" class="w-full text-sm font-mono text-xs" placeholder="Ej: cef754c6-42c4-4494-9fd8-116a0d9fd353" required />
+                                            </div>
+                                            <div>
+                                                <InputLabel value="Consecutivo" />
+                                                <TextInput v-model="testSetForm.test_set_consecutive" type="number" class="w-full text-sm font-mono text-xs" required />
+                                            </div>
+                                            <PrimaryButton :disabled="testSetForm.processing || !client.invoicing_info?.api_token" class="w-full !justify-center !bg-indigo-600">
+                                                Enviar Factura y Consultar
+                                            </PrimaryButton>
+                                        </form>
+
+                                        <!-- Resultado -->
+                                        <div v-if="testSetResultData" class="mt-4 p-4 rounded-lg text-sm" :class="testSetResultData.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'">
+                                            <div class="flex flex-col mb-3">
+                                                <strong class="font-bold text-lg mb-1">{{ testSetResultData.success ? '¡Set de Prueba Aceptado!' : 'Atención / Rechazado' }}</strong>
+                                                <span class="text-[10px] font-mono text-gray-500 bg-white/50 p-1 rounded">ZipKey: {{ testSetResultData.zip_key }}</span>
+                                            </div>
+                                            <p v-if="testSetResultData.status_description" class="mb-2 font-medium">{{ testSetResultData.status_description }}</p>
+                                            <div v-if="testSetResultData.messages && testSetResultData.messages.length > 0" class="mt-3 pt-3 border-t border-black/10">
+                                                <p class="text-xs font-bold mb-1 uppercase tracking-wider">Notificaciones / Errores:</p>
+                                                <ul class="list-disc pl-5 space-y-1 text-[11px] font-mono">
+                                                    <li v-for="(msg, index) in testSetResultData.messages" :key="index">{{ msg }}</li>
+                                                </ul>
+                                            </div>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
                             

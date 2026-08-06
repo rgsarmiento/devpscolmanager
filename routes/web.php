@@ -51,6 +51,7 @@ Route::middleware([
         // Invoicing Routes (Admin only)
         Route::post('/invoicing/{clientId}/company', [\App\Http\Controllers\InvoicingController::class, 'configCompany'])->name('invoicing.company');
         Route::post('/invoicing/{clientId}/update-plan', [\App\Http\Controllers\InvoicingController::class, 'updatePlanDirect'])->name('invoicing.update-plan');
+        Route::post('/invoicing/{clientId}/test-set', [\App\Http\Controllers\InvoicingController::class, 'sendTestInvoice'])->name('invoicing.test-set');
     });
 
     // Client access for distributors (read only mostly, with exceptions)

@@ -422,4 +422,157 @@ class InvoicingController extends Controller
              return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', $e->getMessage());
         }
     }
+
+    public function sendTestInvoice(Request $request, $clientId)
+    {
+        $client = \App\Models\Client::with('invoicingInfo')->findOrFail($clientId);
+
+        // Permissions check
+        if (auth()->user()->isDistributor()) {
+            abort_if($client->distributor_id !== auth()->user()->distributor_id, 403, 'No tienes permiso para modificar este cliente.');
+        }
+
+        $validated = $request->validate([
+            'test_set_id' => 'required|string',
+            'test_set_consecutive' => 'required|integer',
+        ]);
+
+        $token = $client->invoicingInfo?->api_token;
+        if (!$token) {
+            return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'No se encontró el token de API para este cliente.');
+        }
+
+        $now = now();
+        
+        $baseJson = [
+            'number' => $validated['test_set_consecutive'],
+            'type_document_id' => 1,
+            'date' => $now->format('Y-m-d'),
+            'time' => $now->format('H:i:s'),
+            'resolution_number' => '18760000001',
+            'prefix' => 'SETP',
+            'notes' => 'ESTA ES UNA PRUEBA',
+            'disable_confirmation_text' => true,
+            'sendmail' => false,
+            'sendmailtome' => false,
+            'send_customer_credentials' => false,
+            'seze' => '2021-2017',
+            'customer' => [
+                'identification_number' => 1110491530,
+                'dv' => 8,
+                'name' => 'Robert Sarmiento',
+                'phone' => '3187239498',
+                'address' => 'bogota',
+                'email' => 'documentos.electronicos@gmail.com',
+                'merchant_registration' => '0000000-00',
+                'type_document_identification_id' => 6,
+                'type_organization_id' => 1,
+                'type_liability_id' => 7,
+                'municipality_id' => 227,
+                'type_regime_id' => 1
+            ],
+            'payment_form' => [
+                'payment_form_id' => 2,
+                'payment_method_id' => 30,
+                'payment_due_date' => $now->format('Y-m-d'),
+                'duration_measure' => '30'
+            ],
+            'legal_monetary_totals' => [
+                'line_extension_amount' => '840336.134',
+                'tax_exclusive_amount' => '840336.134',
+                'tax_inclusive_amount' => '1000000.00',
+                'payable_amount' => '1000000.00'
+            ],
+            'tax_totals' => [
+                [
+                    'tax_id' => 1,
+                    'tax_amount' => '159663.865',
+                    'percent' => '19.00',
+                    'taxable_amount' => '840336.134'
+                ]
+            ],
+            'invoice_lines' => [
+                [
+                    'unit_measure_id' => 70,
+                    'invoiced_quantity' => '1',
+                    'line_extension_amount' => '840336.134',
+                    'free_of_charge_indicator' => false,
+                    'tax_totals' => [
+                        [
+                            'tax_id' => 1,
+                            'tax_amount' => '159663.865',
+                            'taxable_amount' => '840336.134',
+                            'percent' => '19.00'
+                        ]
+                    ],
+                    'description' => 'COMISION POR SERVICIOS',
+                    'notes' => 'ESTA ES UNA PRUEBA DE NOTA DE DETALLE DE LINEA.',
+                    'code' => 'COMISION',
+                    'type_item_identification_id' => 4,
+                    'price_amount' => '1000000.00',
+                    'base_quantity' => '1'
+                ]
+            ]
+        ];
+
+        try {
+            // Save the ID and consecutive in the DB
+            if ($client->invoicingInfo) {
+                $client->invoicingInfo->update([
+                    'test_set_id' => $validated['test_set_id'],
+                    'test_set_consecutive' => $validated['test_set_consecutive']
+                ]);
+            }
+
+            // Step 1: Send the test invoice
+            $invoiceResponse = $this->billingService->sendTestSet($token, $validated['test_set_id'], $baseJson);
+            
+            $zipKey = null;
+            if (isset($invoiceResponse['ResponseDian']['Envelope']['Body']['SendTestSetAsyncResponse']['SendTestSetAsyncResult']['ZipKey'])) {
+                $zipKey = $invoiceResponse['ResponseDian']['Envelope']['Body']['SendTestSetAsyncResponse']['SendTestSetAsyncResult']['ZipKey'];
+            }
+            
+            if (!$zipKey) {
+                return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'No se pudo obtener el ZipKey de la respuesta de la DIAN.');
+            }
+
+            // Step 2: Check Zip Status
+            $statusResponse = $this->billingService->checkZipStatus($token, $zipKey);
+
+            $dianResult = $statusResponse['ResponseDian']['Envelope']['Body']['GetStatusZipResponse']['GetStatusZipResult']['DianResponse'] ?? null;
+            
+            if (!$dianResult) {
+                return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'No se pudo parsear la respuesta de estado de la DIAN.');
+            }
+
+            $isValid = ($dianResult['IsValid'] === 'true' || $dianResult['IsValid'] === true);
+            $statusCode = $dianResult['StatusCode'] ?? '';
+            
+            // Check if accepted despite IsValid being false (StatusCode 2 = Accepted)
+            $isAccepted = $isValid || $statusCode === '2' || $statusCode === 2;
+
+            $messages = [];
+            
+            if (isset($dianResult['ErrorMessage'])) {
+                if (isset($dianResult['ErrorMessage']['string'])) {
+                    if (is_array($dianResult['ErrorMessage']['string'])) {
+                        $messages = $dianResult['ErrorMessage']['string'];
+                    } else {
+                        $messages[] = $dianResult['ErrorMessage']['string'];
+                    }
+                }
+            }
+
+            return back()->with('testSetResult', [
+                'success' => $isAccepted,
+                'status_code' => $statusCode,
+                'status_description' => $dianResult['StatusDescription'] ?? '',
+                'messages' => $messages,
+                'zip_key' => $zipKey
+            ])->with('flash.banner', 'Consulta de Set de Pruebas finalizada.');
+
+        } catch (\Exception $e) {
+            return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'Error: ' . $e->getMessage());
+        }
+    }
 }
