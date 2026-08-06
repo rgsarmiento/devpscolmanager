@@ -580,4 +580,61 @@ class InvoicingController extends Controller
             ], 500);
         }
     }
+
+    public function checkTestStatus(Request $request, $clientId)
+    {
+        $client = \App\Models\Client::with('invoicingInfo')->findOrFail($clientId);
+
+        $validated = $request->validate([
+            'zip_key' => 'required|string',
+        ]);
+
+        $token = $client->invoicingInfo?->api_token;
+        if (!$token) {
+            return response()->json(['success' => false, 'status_description' => 'No se encontró el token de API para este cliente.', 'messages' => [], 'zip_key' => null], 400);
+        }
+
+        try {
+            $statusResponse = $this->billingService->checkZipStatus($token, $validated['zip_key']);
+
+            $dianResult = $statusResponse['ResponseDian']['Envelope']['Body']['GetStatusZipResponse']['GetStatusZipResult']['DianResponse'] ?? null;
+            
+            if (!$dianResult) {
+                return response()->json(['success' => false, 'status_description' => 'No se pudo parsear la respuesta de estado. Respuesta API: ' . json_encode($statusResponse), 'messages' => [], 'zip_key' => $validated['zip_key']], 400);
+            }
+
+            $isValid = ($dianResult['IsValid'] === 'true' || $dianResult['IsValid'] === true);
+            $statusCode = $dianResult['StatusCode'] ?? '';
+            
+            $isAccepted = $isValid || $statusCode === '2' || $statusCode === 2;
+
+            $messages = [];
+            
+            if (isset($dianResult['ErrorMessage'])) {
+                if (isset($dianResult['ErrorMessage']['string'])) {
+                    if (is_array($dianResult['ErrorMessage']['string'])) {
+                        $messages = $dianResult['ErrorMessage']['string'];
+                    } else {
+                        $messages[] = $dianResult['ErrorMessage']['string'];
+                    }
+                }
+            }
+
+            return response()->json([
+                'success' => $isAccepted,
+                'status_code' => $statusCode,
+                'status_description' => $dianResult['StatusDescription'] ?? '',
+                'messages' => $messages,
+                'zip_key' => $validated['zip_key']
+            ]);
+
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'status_description' => 'Error: ' . $e->getMessage(),
+                'messages' => [],
+                'zip_key' => $validated['zip_key']
+            ], 500);
+        }
+    }
 }

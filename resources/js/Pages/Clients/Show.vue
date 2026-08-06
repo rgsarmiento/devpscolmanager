@@ -632,7 +632,9 @@ const submitCertificateConfig = () => {
 
 const testSetForm = useForm({
     test_set_id: props.client.invoicing_info?.test_set_id || '',
-    test_set_consecutive: props.client.invoicing_info?.test_set_consecutive || 990000001,
+    test_set_consecutive: props.client.invoicing_info?.test_set_consecutive 
+        ? (parseInt(props.client.invoicing_info.test_set_consecutive) + 1) 
+        : 990000001,
 });
 
 const testSetResultData = ref(null);
@@ -662,6 +664,35 @@ const submitTestSet = async () => {
             success: false, 
             status_description: errorMsg,
             zip_key: null,
+            messages: []
+        };
+    } finally {
+        testSetForm.processing = false;
+    }
+};
+
+const checkTestStatus = async (zipKey) => {
+    if (!zipKey) return;
+    testSetForm.processing = true;
+    try {
+        const response = await axios.post(`/invoicing/${props.client.id}/test-status`, { zip_key: zipKey });
+        testSetResultData.value = response.data;
+    } catch (error) {
+        let errorMsg = "Error al consultar estado del ZipKey.";
+        if (error.response?.status === 422 && error.response?.data?.errors) {
+            errorMsg = Object.values(error.response.data.errors).flat().join(" ");
+        } else if (error.response?.data?.status_description) {
+            errorMsg = error.response.data.status_description;
+        } else if (error.response?.data?.message) {
+            errorMsg = error.response.data.message;
+        } else if (typeof error.response?.data === 'string') {
+            errorMsg = "Error del servidor (Código " + error.response.status + ").";
+        }
+        
+        testSetResultData.value = { 
+            success: false, 
+            status_description: errorMsg,
+            zip_key: zipKey,
             messages: []
         };
     } finally {
@@ -1332,7 +1363,13 @@ const formatNumber = (num, decimals = 0) => {
                                         <div v-if="testSetResultData" class="mt-4 p-4 rounded-lg text-sm" :class="testSetResultData.success ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'">
                                             <div class="flex flex-col mb-3">
                                                 <strong class="font-bold text-lg mb-1">{{ testSetResultData.success ? '¡Set de Prueba Aceptado!' : 'Atención / Rechazado' }}</strong>
-                                                <span class="text-[10px] font-mono text-gray-500 bg-white/50 p-1 rounded">ZipKey: {{ testSetResultData.zip_key }}</span>
+                                                <div class="flex items-center gap-2">
+                                                    <span class="text-[10px] font-mono text-gray-500 bg-white/50 p-1 rounded">ZipKey: {{ testSetResultData.zip_key }}</span>
+                                                    <button v-if="testSetResultData.zip_key && !testSetResultData.success" type="button" @click="checkTestStatus(testSetResultData.zip_key)" class="text-[10px] font-bold bg-indigo-100 text-indigo-700 hover:bg-indigo-200 px-2 py-1 rounded transition-colors" :disabled="testSetForm.processing">
+                                                        <span v-if="testSetForm.processing">Consultando...</span>
+                                                        <span v-else>Volver a Consultar</span>
+                                                    </button>
+                                                </div>
                                             </div>
                                             <p v-if="testSetResultData.status_description" class="mb-2 font-medium">{{ testSetResultData.status_description }}</p>
                                             <div v-if="testSetResultData.messages && testSetResultData.messages.length > 0" class="mt-3 pt-3 border-t border-black/10">
