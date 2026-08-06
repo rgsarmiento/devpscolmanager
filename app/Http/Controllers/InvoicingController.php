@@ -439,7 +439,7 @@ class InvoicingController extends Controller
 
         $token = $client->invoicingInfo?->api_token;
         if (!$token) {
-            return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'No se encontró el token de API para este cliente.');
+            return response()->json(['success' => false, 'status_description' => 'No se encontró el token de API para este cliente.', 'messages' => [], 'zip_key' => null], 400);
         }
 
         $now = now();
@@ -533,7 +533,7 @@ class InvoicingController extends Controller
             }
             
             if (!$zipKey) {
-                return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'No se pudo obtener el ZipKey de la respuesta de la DIAN.');
+                return response()->json(['success' => false, 'status_description' => 'No se pudo obtener el ZipKey de la respuesta de la DIAN.', 'messages' => [], 'zip_key' => null], 400);
             }
 
             // Step 2: Check Zip Status
@@ -542,7 +542,7 @@ class InvoicingController extends Controller
             $dianResult = $statusResponse['ResponseDian']['Envelope']['Body']['GetStatusZipResponse']['GetStatusZipResult']['DianResponse'] ?? null;
             
             if (!$dianResult) {
-                return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'No se pudo parsear la respuesta de estado de la DIAN.');
+                return response()->json(['success' => false, 'status_description' => 'No se pudo parsear la respuesta de estado de la DIAN.', 'messages' => [], 'zip_key' => null], 400);
             }
 
             $isValid = ($dianResult['IsValid'] === 'true' || $dianResult['IsValid'] === true);
@@ -563,16 +563,21 @@ class InvoicingController extends Controller
                 }
             }
 
-            return back()->with('testSetResult', [
+            return response()->json([
                 'success' => $isAccepted,
                 'status_code' => $statusCode,
                 'status_description' => $dianResult['StatusDescription'] ?? '',
                 'messages' => $messages,
                 'zip_key' => $zipKey
-            ])->with('flash.banner', 'Consulta de Set de Pruebas finalizada.');
+            ]);
 
         } catch (\Exception $e) {
-            return back()->with('flash.bannerStyle', 'danger')->with('flash.banner', 'Error: ' . $e->getMessage());
+            return response()->json([
+                'success' => false,
+                'status_description' => 'Error: ' . $e->getMessage(),
+                'messages' => [],
+                'zip_key' => null
+            ], 500);
         }
     }
 }

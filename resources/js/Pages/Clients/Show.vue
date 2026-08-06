@@ -637,15 +637,20 @@ const testSetForm = useForm({
 
 const testSetResultData = ref(null);
 
-const submitTestSet = () => {
-    testSetForm.post(route('invoicing.test-set', props.client.id), {
-        preserveScroll: true,
-        onSuccess: (page) => {
-            if (page.props.flash?.testSetResult) {
-                testSetResultData.value = page.props.flash.testSetResult;
-            }
-        }
-    });
+const submitTestSet = async () => {
+    testSetForm.processing = true;
+    testSetResultData.value = null;
+    try {
+        const response = await axios.post(`/invoicing/${props.client.id}/test-set`, {
+            test_set_id: testSetForm.test_set_id,
+            test_set_consecutive: testSetForm.test_set_consecutive
+        });
+        testSetResultData.value = response.data;
+    } catch (error) {
+        testSetResultData.value = error.response?.data || { success: false, status_description: "Error de conexión o validación" };
+    } finally {
+        testSetForm.processing = false;
+    }
 };
 
 const copyToClipboard = (text) => {
@@ -1302,8 +1307,8 @@ const formatNumber = (num, decimals = 0) => {
                                                 <InputLabel value="Consecutivo" />
                                                 <TextInput v-model="testSetForm.test_set_consecutive" type="number" class="w-full text-sm font-mono text-xs" required />
                                             </div>
-                                            <PrimaryButton :disabled="testSetForm.processing || !client.invoicing_info?.api_token" class="w-full !justify-center !bg-indigo-600">
-                                                Enviar Factura y Consultar
+                                            <PrimaryButton type="submit" :disabled="testSetForm.processing || !client.invoicing_info?.api_token" class="w-full !justify-center !bg-indigo-600">
+                                                Habilitar
                                             </PrimaryButton>
                                         </form>
 
