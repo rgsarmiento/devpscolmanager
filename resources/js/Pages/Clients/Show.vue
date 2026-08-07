@@ -338,20 +338,28 @@ const deleteComputer = (pc) => {
 
 // --- Invoicing Config ---
 const planForm = useForm({
-    plan_documents: props.client.invoicing_info?.plan_documents || '',
+    plan_documents: props.client.invoicing_info?.plan_documents || 0,
     plan_start_date: props.client.invoicing_info?.plan_start_date ? props.client.invoicing_info.plan_start_date.split('.')[0].replace(' ', 'T') : '',
+    generate_pending_folios: false,
 });
 
-const submitPlanUpdate = () => {
+const pendingAction = ref('');
+
+const executePlanUpdate = () => {
     planForm.post(route('invoicing.update-plan', props.client.id), {
         preserveScroll: true,
         onSuccess: () => {
-            showToast('Plan actualizado directamente con éxito', 'success');
+            showToast('Plan actualizado con éxito', 'success');
         },
         onError: () => {
             showToast('Error al actualizar el plan', 'danger');
         }
     });
+};
+
+const submitPlanUpdate = () => {
+    pendingAction.value = 'plan';
+    checkFolioChanges(planForm.plan_documents, props.client.invoicing_info?.plan_documents || 0, planForm.plan_start_date, props.client.invoicing_info?.plan_start_date);
 };
 
 const companyForm = useForm({
@@ -384,7 +392,6 @@ const companyForm = useForm({
     imap_encryption: props.client.invoicing_info?.imap_encryption || 'ssl',
     plan_documents: props.client.invoicing_info?.plan_documents || '',
     plan_start_date: props.client.invoicing_info?.plan_start_date ? props.client.invoicing_info.plan_start_date.split('.')[0].replace(' ', 'T') : '',
-    generate_pending_folios: false,
 });
 
 const softwareForm = useForm({
@@ -396,29 +403,42 @@ const folioConfirmationModalOpen = ref(false);
 const estimatedFolioCost = ref(0);
 
 const submitCompanyConfig = () => {
-    const oldFolios = parseInt(props.client.invoicing_info?.plan_documents) || 0;
-    const newFolios = parseInt(planForm.plan_documents) || 0;
-    const oldDate = props.client.invoicing_info?.plan_start_date ? props.client.invoicing_info.plan_start_date.split('.')[0].replace(' ', 'T') : '';
-    const newDate = planForm.plan_start_date || '';
+    pendingAction.value = 'company';
+    checkFolioChanges(planForm.plan_documents, props.client.invoicing_info?.plan_documents || 0, planForm.plan_start_date, props.client.invoicing_info?.plan_start_date);
+};
+
+const checkFolioChanges = (newFolios, oldFolios, newDate, oldDate) => {
+    oldFolios = parseInt(oldFolios) || 0;
+    newFolios = parseInt(newFolios) || 0;
+    oldDate = oldDate ? oldDate.split('.')[0].replace(' ', 'T') : '';
+    newDate = newDate || '';
     
     if ((newFolios > 0 && oldFolios !== newFolios) || (newFolios > 0 && oldDate !== newDate)) {
         if (newFolios >= 1000000) {
-            const unl = props.folioRates?.find(r => r.max_folios === null);
-            estimatedFolioCost.value = unl ? unl.price : 0;
+            estimatedFolioCost.value = props.folioRates?.find(r => r.max_folios >= 1000000)?.price || 0;
         } else {
             const rate = props.folioRates?.find(r => r.min_folios <= newFolios && r.max_folios >= newFolios);
             estimatedFolioCost.value = rate ? rate.price * newFolios : 0;
         }
         folioConfirmationModalOpen.value = true;
     } else {
-        executeCompanySync();
+        if (pendingAction.value === 'company') {
+            executeCompanySync();
+        } else {
+            executePlanUpdate();
+        }
     }
 };
 
 const confirmFolioSync = (generatePending) => {
-    companyForm.generate_pending_folios = generatePending;
     folioConfirmationModalOpen.value = false;
-    executeCompanySync();
+    if (pendingAction.value === 'company') {
+        companyForm.generate_pending_folios = generatePending;
+        executeCompanySync();
+    } else {
+        planForm.generate_pending_folios = generatePending;
+        executePlanUpdate();
+    }
 };
 
 const executeCompanySync = () => {

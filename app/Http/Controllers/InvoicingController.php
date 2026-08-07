@@ -194,7 +194,7 @@ class InvoicingController extends Controller
 
         try {
             // Update external DB directly
-            $planStartDate = \Carbon\Carbon::parse($validated['plan_start_date'])->addHours(5)->format('Y-m-d H:i:s');
+            $planStartDate = \Carbon\Carbon::parse($validated['plan_start_date'])->format('Y-m-d H:i:s');
             
             \Illuminate\Support\Facades\DB::connection('api_external')
                 ->table('companies')
@@ -215,6 +215,30 @@ class InvoicingController extends Controller
                     'plan_documents' => $validated['plan_documents'],
                     'plan_start_date' => $planStartDate,
                 ]);
+            }
+
+            $newPlanDocuments = $validated['plan_documents'];
+            if ($newPlanDocuments > 0 && $request->boolean('generate_pending_folios')) {
+                $type = $newPlanDocuments >= 1000000 ? 'unlimited_folios' : 'folios';
+                $hasPending = \App\Models\LicenseTransaction::where('client_id', $client->id)
+                    ->whereIn('type', ['folios', 'unlimited_folios'])
+                    ->where('status', 'pending')
+                    ->first();
+
+                if ($hasPending) {
+                    $hasPending->update([
+                        'folios_count' => $newPlanDocuments,
+                        'type' => $type
+                    ]);
+                } else {
+                    \App\Models\LicenseTransaction::create([
+                        'client_id' => $client->id,
+                        'distributor_id' => $client->distributor_id,
+                        'type' => $type,
+                        'folios_count' => $newPlanDocuments,
+                        'status' => 'pending'
+                    ]);
+                }
             }
 
             return back()->with('flash.banner', 'Plan actualizado directamente con éxito.');
