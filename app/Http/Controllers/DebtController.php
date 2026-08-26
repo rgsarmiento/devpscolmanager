@@ -116,8 +116,8 @@ class DebtController extends Controller
             'client_id' => $validated['client_id'],
             'amount' => $debtInfo['amount'],
             'details' => implode(', ', $debtInfo['details']),
-            'status' => 'paid',
-            'paid_at' => now(),
+            'status' => 'pending',
+            'amount_paid' => 0,
         ]);
 
         // Mark as billed
@@ -242,14 +242,28 @@ class DebtController extends Controller
         return ['amount' => $amount, 'details' => $details];
     }
 
-    public function pay(Debt $debt)
+    public function pay(Request $request, Debt $debt)
     {
-        $debt->update([
-            'status' => 'paid',
-            'paid_at' => now(),
+        $validated = $request->validate([
+            'payment_amount' => 'nullable|numeric|min:0'
         ]);
 
-        return back()->with('flash.banner', 'Deuda marcada como pagada.');
+        $payment = $validated['payment_amount'] ?? $debt->amount;
+        $newAmountPaid = $debt->amount_paid + $payment;
+
+        if ($newAmountPaid >= $debt->amount) {
+            $debt->update([
+                'amount_paid' => $debt->amount,
+                'status' => 'paid',
+                'paid_at' => now(),
+            ]);
+            return back()->with('flash.banner', 'Deuda marcada como pagada en su totalidad.');
+        } else {
+            $debt->update([
+                'amount_paid' => $newAmountPaid,
+            ]);
+            return back()->with('flash.banner', 'Abono registrado correctamente. Saldo pendiente: $' . number_format($debt->amount - $newAmountPaid, 2));
+        }
     }
 
     public function renewService(\App\Models\LicenseTransaction $transaction)

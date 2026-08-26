@@ -316,7 +316,27 @@ class ClientController extends Controller
      */
     public function show(Request $request, $id, \App\Services\BillingApiService $billingService)
     {
-        $client = \App\Models\Client::with(['computers', 'invoicingInfo', 'clientServices', 'distributor', 'resolutions'])->findOrFail($id);
+        $client = \App\Models\Client::with(['computers', 'invoicingInfo', 'clientServices', 'distributor'])->findOrFail($id);
+
+        $externalResolutions = collect();
+        if ($client->invoicingInfo && $client->invoicingInfo->company_id) {
+            try {
+                $externalResolutions = \Illuminate\Support\Facades\DB::connection('api_external')
+                    ->table('resolutions')
+                    ->where('company_id', $client->invoicingInfo->company_id)
+                    ->orderBy('id', 'desc')
+                    ->get()
+                    ->map(function ($res) {
+                        $res->environment = 'produccion';
+                        $res->date_from = $res->date_from ? \Carbon\Carbon::parse($res->date_from)->format('Y-m-d') : null;
+                        $res->date_to = $res->date_to ? \Carbon\Carbon::parse($res->date_to)->format('Y-m-d') : null;
+                        return $res;
+                    });
+            } catch (\Exception $e) {
+                \Illuminate\Support\Facades\Log::warning("Could not fetch resolutions for client {$id}: " . $e->getMessage());
+            }
+        }
+        $client->setRelation('resolutions', $externalResolutions);
 
         // Security check for distributors
         if (auth()->user()->isDistributor()) {

@@ -1504,10 +1504,10 @@ const formatNumber = (num, decimals = 0) => {
                                             </div>
                                         </form>
 
-                                        <!-- Resoluciones Guardadas Localmente -->
+                                        <!-- Resoluciones Guardadas en API Externa -->
                                         <div class="mt-8 border-t border-gray-200 pt-6" v-if="client.resolutions && client.resolutions.length > 0">
                                             <div class="flex justify-between items-center mb-4">
-                                                <h5 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Resoluciones Guardadas Localmente</h5>
+                                                <h5 class="text-xs font-bold text-gray-500 uppercase tracking-widest">Resoluciones en API Externa</h5>
                                                 <div class="relative w-64">
                                                     <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                                                         <svg class="h-4 w-4 text-gray-400" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
