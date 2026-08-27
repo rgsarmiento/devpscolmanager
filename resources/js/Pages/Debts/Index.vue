@@ -115,6 +115,14 @@ const payBalance = (balanceId) => {
     }
 };
 
+const viewImageModalOpen = ref(false);
+const currentViewImage = ref('');
+
+const openImageModal = (imageUrl) => {
+    currentViewImage.value = imageUrl;
+    viewImageModalOpen.value = true;
+};
+
 const sendServiceWhatsApp = (client, srv) => {
     const formatter = new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 });
     const formattedPrice = formatter.format(srv.computed_price || 0);
@@ -294,7 +302,8 @@ const copyServiceMessage = (client, srv) => {
                             </PrimaryButton>
                         </div>
                         
-                        <table class="min-w-full divide-y divide-gray-200 mt-4">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 mt-4">
                             <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
@@ -317,7 +326,7 @@ const copyServiceMessage = (client, srv) => {
                                         {{ bal.observation }}
                                     </td>
                                     <td class="px-6 py-4 text-center text-sm">
-                                        <a v-if="bal.image_path" :href="`/storage/${bal.image_path}`" target="_blank" class="text-indigo-600 hover:text-indigo-900 font-bold text-xs underline">Ver Imagen</a>
+                                        <button v-if="bal.image_path" @click="openImageModal(`/storage/${bal.image_path}`)" type="button" class="text-indigo-600 hover:text-indigo-900 font-bold text-xs underline">Ver Imagen</button>
                                         <span v-else class="text-gray-400 text-xs">-</span>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-800">
@@ -333,6 +342,7 @@ const copyServiceMessage = (client, srv) => {
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
 
@@ -341,8 +351,9 @@ const copyServiceMessage = (client, srv) => {
                     <div class="p-6 border-b border-gray-200">
                         <h3 class="text-lg font-bold text-gray-800 mb-4">Historial de Pagos</h3>
                         
-                        <table class="min-w-full divide-y divide-gray-200 mt-4">
-                            <thead class="bg-gray-50">
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200 mt-4">
+                                <thead class="bg-gray-50">
                                 <tr>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distribuidor / Cliente</th>
@@ -371,6 +382,7 @@ const copyServiceMessage = (client, srv) => {
                                 </tr>
                             </tbody>
                         </table>
+                        </div>
                     </div>
                 </div>
 
@@ -425,6 +437,29 @@ const copyServiceMessage = (client, srv) => {
                 <PrimaryButton @click="submitBalance" :disabled="balanceForm.processing" class="!bg-indigo-600">
                     Guardar Saldo
                 </PrimaryButton>
+            </template>
+        </DialogModal>
+
+        <DialogModal :show="viewImageModalOpen" @close="viewImageModalOpen = false" max-width="4xl">
+            <template #title>
+                <div class="flex justify-between items-center">
+                    <span>Captura Adjunta</span>
+                    <button @click="viewImageModalOpen = false" class="text-gray-400 hover:text-gray-600">
+                        <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    </button>
+                </div>
+            </template>
+
+            <template #content>
+                <div class="mt-4 flex justify-center bg-gray-100 p-2 rounded-lg max-h-[70vh] overflow-auto">
+                    <img v-if="currentViewImage" :src="currentViewImage" alt="Captura" class="max-w-full h-auto rounded shadow" />
+                </div>
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="viewImageModalOpen = false">
+                    Cerrar
+                </SecondaryButton>
             </template>
         </DialogModal>
     </AppLayout>
