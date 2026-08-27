@@ -4,11 +4,16 @@ import { useForm, router } from '@inertiajs/vue3';
 import AppLayout from '@/Layouts/AppLayout.vue';
 import PrimaryButton from '@/Components/PrimaryButton.vue';
 import SecondaryButton from '@/Components/SecondaryButton.vue';
+import DialogModal from '@/Components/DialogModal.vue';
+import InputLabel from '@/Components/InputLabel.vue';
+import TextInput from '@/Components/TextInput.vue';
+import InputError from '@/Components/InputError.vue';
 
 const props = defineProps({
     distributors: Array,
     directClients: Array,
-    debts: Array
+    debts: Array,
+    pendingBalances: Array
 });
 
 // Format currency
@@ -34,16 +39,11 @@ const generateDebt = (distId, clientId) => {
     }
 };
 
-const payForm = useForm({ payment_amount: null });
-const payDebt = (debtId, amountLeft) => {
-    let payment = prompt(`Saldo pendiente: $${amountLeft}. Ingrese el monto a abonar (deje en blanco para pagar el total):`);
-    if (payment === null) return;
-    if (payment !== "") {
-        payForm.payment_amount = parseFloat(payment.replace(/[^0-9.-]+/g,""));
-    } else {
-        payForm.payment_amount = null;
+const payForm = useForm({});
+const payDebt = (debtId) => {
+    if (confirm('¿Marcar como pagado?')) {
+        payForm.post(route('debts.pay', debtId));
     }
-    payForm.post(route('debts.pay', debtId));
 };
 
 const serviceForm = useForm({});
@@ -62,6 +62,56 @@ const txForm = useForm({});
 const payTx = (transactionId) => {
     if (confirm('¿Marcar este cobro individual como pagado?')) {
         txForm.post(route('license-transactions.pay', transactionId));
+    }
+};
+
+const balanceModalOpen = ref(false);
+const imagePreview = ref(null);
+const balanceForm = useForm({
+    distributor_id: '',
+    amount: '',
+    observation: '',
+    image: null
+});
+
+const openBalanceModal = () => {
+    balanceForm.reset();
+    imagePreview.value = null;
+    balanceModalOpen.value = true;
+};
+
+const handlePaste = (e) => {
+    const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+    for (let index in items) {
+        const item = items[index];
+        if (item.kind === 'file') {
+            const blob = item.getAsFile();
+            balanceForm.image = blob;
+            imagePreview.value = URL.createObjectURL(blob);
+        }
+    }
+};
+
+const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+        balanceForm.image = file;
+        imagePreview.value = URL.createObjectURL(file);
+    }
+};
+
+const submitBalance = () => {
+    balanceForm.post(route('distributor-balances.store'), {
+        onSuccess: () => {
+            balanceModalOpen.value = false;
+        }
+    });
+};
+
+const payBalanceForm = useForm({});
+const payBalance = (balanceId) => {
+    if (confirm('¿Marcar este saldo pendiente como pagado?')) {
+        payBalanceForm.post(route('distributor-balances.pay', balanceId));
     }
 };
 
@@ -172,7 +222,7 @@ const copyServiceMessage = (client, srv) => {
                                     <div class="flex flex-col items-end gap-2 ml-4">
                                         <div class="text-lg font-bold text-indigo-700">Total: {{ new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(client.pending_amount || 0) }}</div>
                                         <PrimaryButton @click="generateDebt(distributor.id, client.id)" :disabled="generateForm.processing">
-                                            Liquidar/Cobrar
+                                            Marcar como Pagado
                                         </PrimaryButton>
                                     </div>
                                 </div>
@@ -225,7 +275,7 @@ const copyServiceMessage = (client, srv) => {
                                     <div class="flex flex-col items-end gap-2 ml-4">
                                         <div class="text-lg font-bold text-emerald-700">Total: {{ new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', minimumFractionDigits: 0 }).format(client.pending_amount || 0) }}</div>
                                         <PrimaryButton @click="generateDebt(null, client.id)" :disabled="generateForm.processing" class="!bg-emerald-600 hover:!bg-emerald-700">
-                                            Liquidar/Cobrar
+                                            Marcar como Pagado
                                         </PrimaryButton>
                                     </div>
                                 </div>
@@ -234,10 +284,62 @@ const copyServiceMessage = (client, srv) => {
                     </div>
                 </div>
 
+                <!-- Saldos Pendientes Distribuidores -->
+                <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg mb-8">
+                    <div class="p-6 border-b border-gray-200">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-lg font-bold text-gray-800">Saldos Pendientes (Distribuidores)</h3>
+                            <PrimaryButton @click="openBalanceModal">
+                                Registrar Saldo Pendiente
+                            </PrimaryButton>
+                        </div>
+                        
+                        <table class="min-w-full divide-y divide-gray-200 mt-4">
+                            <thead class="bg-gray-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distribuidor</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Observación</th>
+                                    <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Captura</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Monto</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="bal in pendingBalances" :key="bal.id" :class="bal.status === 'pending' ? 'bg-orange-50' : 'bg-gray-50'">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                                        {{ new Date(bal.created_at).toLocaleDateString() }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-900 font-bold">
+                                        {{ bal.distributor ? bal.distributor.name : '-' }}
+                                    </td>
+                                    <td class="px-6 py-4 text-sm text-gray-500">
+                                        {{ bal.observation }}
+                                    </td>
+                                    <td class="px-6 py-4 text-center text-sm">
+                                        <a v-if="bal.image_path" :href="`/storage/${bal.image_path}`" target="_blank" class="text-indigo-600 hover:text-indigo-900 font-bold text-xs underline">Ver Imagen</a>
+                                        <span v-else class="text-gray-400 text-xs">-</span>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-800">
+                                        {{ formatCurrency(bal.amount) }}
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right">
+                                        <span v-if="bal.status === 'paid'" class="text-green-600 font-bold uppercase text-xs">Pagado</span>
+                                        <button v-else @click="payBalance(bal.id)" class="bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs uppercase px-3 py-1 rounded transition">Marcar Pagado</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="pendingBalances && pendingBalances.length === 0">
+                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">No hay saldos pendientes registrados.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
                 <!-- Debts / Invoices -->
                 <div class="bg-white overflow-hidden shadow-xl sm:rounded-lg">
                     <div class="p-6 border-b border-gray-200">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4">Historial de Cobros</h3>
+                        <h3 class="text-lg font-bold text-gray-800 mb-4">Historial de Pagos</h3>
                         
                         <table class="min-w-full divide-y divide-gray-200 mt-4">
                             <thead class="bg-gray-50">
@@ -245,13 +347,11 @@ const copyServiceMessage = (client, srv) => {
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Distribuidor / Cliente</th>
                                     <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Detalle</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Monto Total</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Abonado / Saldo</th>
-                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Estado</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Total Pagado</th>
                                 </tr>
                             </thead>
                             <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="debt in debts" :key="debt.id" :class="debt.status === 'pending' ? 'bg-orange-50' : ''">
+                                <tr v-for="debt in debts" :key="debt.id">
                                     <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                                         {{ new Date(debt.created_at).toLocaleDateString() }}
                                     </td>
@@ -262,20 +362,12 @@ const copyServiceMessage = (client, srv) => {
                                     <td class="px-6 py-4 text-sm text-gray-500 max-w-xs">
                                         {{ debt.details }}
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-800">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-600">
                                         {{ formatCurrency(debt.amount) }}
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-right">
-                                        <div class="text-green-600 font-bold">{{ formatCurrency(debt.amount_paid) }}</div>
-                                        <div class="text-xs text-orange-600 font-bold">Resta: {{ formatCurrency(debt.amount - debt.amount_paid) }}</div>
-                                    </td>
-                                    <td class="px-6 py-4 whitespace-nowrap text-right">
-                                        <span v-if="debt.status === 'paid'" class="text-green-600 font-bold uppercase text-xs">Pagado</span>
-                                        <button v-else @click="payDebt(debt.id, debt.amount - debt.amount_paid)" class="bg-orange-500 hover:bg-orange-600 text-white font-bold text-xs uppercase px-3 py-1 rounded">Abonar</button>
                                     </td>
                                 </tr>
                                 <tr v-if="debts.length === 0">
-                                    <td colspan="6" class="px-6 py-4 text-center text-gray-500">No hay cobros registrados.</td>
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-500">No hay pagos registrados.</td>
                                 </tr>
                             </tbody>
                         </table>
@@ -284,5 +376,56 @@ const copyServiceMessage = (client, srv) => {
 
             </div>
         </div>
+
+        <DialogModal :show="balanceModalOpen" @close="balanceModalOpen = false">
+            <template #title>
+                Registrar Saldo Pendiente (Distribuidor)
+            </template>
+
+            <template #content>
+                <div class="mt-4" @paste="handlePaste">
+                    <div class="mb-4">
+                        <InputLabel for="distributor_id" value="Distribuidor" />
+                        <select id="distributor_id" v-model="balanceForm.distributor_id" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full">
+                            <option value="" disabled>Seleccione un distribuidor</option>
+                            <option v-for="dist in distributors" :key="dist.id" :value="dist.id">{{ dist.name }}</option>
+                        </select>
+                        <InputError :message="balanceForm.errors.distributor_id" class="mt-2" />
+                    </div>
+
+                    <div class="mb-4">
+                        <InputLabel for="amount" value="Monto ($)" />
+                        <TextInput id="amount" type="number" class="mt-1 block w-full" v-model="balanceForm.amount" min="0" />
+                        <InputError :message="balanceForm.errors.amount" class="mt-2" />
+                    </div>
+
+                    <div class="mb-4">
+                        <InputLabel for="observation" value="Observación / Detalle" />
+                        <textarea id="observation" v-model="balanceForm.observation" rows="3" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full"></textarea>
+                        <InputError :message="balanceForm.errors.observation" class="mt-2" />
+                    </div>
+
+                    <div class="mb-4 p-4 border-2 border-dashed border-gray-300 rounded-lg text-center bg-gray-50">
+                        <p class="text-sm text-gray-600 mb-2">Haz clic aquí y presiona <b>Ctrl+V</b> para pegar una imagen, o selecciona un archivo.</p>
+                        <input type="file" accept="image/*" @change="handleFileSelect" class="text-sm text-gray-600" />
+                        
+                        <div v-if="imagePreview" class="mt-4">
+                            <p class="text-xs font-bold text-emerald-600 mb-1">Captura adjunta:</p>
+                            <img :src="imagePreview" alt="Captura" class="max-h-48 mx-auto rounded border shadow-sm" />
+                        </div>
+                        <InputError :message="balanceForm.errors.image" class="mt-2" />
+                    </div>
+                </div>
+            </template>
+
+            <template #footer>
+                <SecondaryButton @click="balanceModalOpen = false" class="mr-3">
+                    Cancelar
+                </SecondaryButton>
+                <PrimaryButton @click="submitBalance" :disabled="balanceForm.processing" class="!bg-indigo-600">
+                    Guardar Saldo
+                </PrimaryButton>
+            </template>
+        </DialogModal>
     </AppLayout>
 </template>

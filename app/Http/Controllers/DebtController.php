@@ -79,11 +79,13 @@ class DebtController extends Controller
         }
 
         $debts = Debt::with(['distributor', 'client'])->where('status', 'paid')->orderByDesc('created_at')->get();
+        $pendingBalances = \App\Models\DistributorPendingBalance::with('distributor')->orderByDesc('created_at')->get();
 
-        return Inertia::render('Debts/Index', [
+        return \Inertia\Inertia::render('Debts/Index', [
             'distributors' => $distributors,
             'directClients' => $directClients,
-            'debts' => $debts
+            'debts' => $debts,
+            'pendingBalances' => $pendingBalances
         ]);
     }
 
@@ -116,8 +118,8 @@ class DebtController extends Controller
             'client_id' => $validated['client_id'],
             'amount' => $debtInfo['amount'],
             'details' => implode(', ', $debtInfo['details']),
-            'status' => 'pending',
-            'amount_paid' => 0,
+            'status' => 'paid',
+            'paid_at' => now(),
         ]);
 
         // Mark as billed
@@ -242,28 +244,14 @@ class DebtController extends Controller
         return ['amount' => $amount, 'details' => $details];
     }
 
-    public function pay(Request $request, Debt $debt)
+    public function pay(Debt $debt)
     {
-        $validated = $request->validate([
-            'payment_amount' => 'nullable|numeric|min:0'
+        $debt->update([
+            'status' => 'paid',
+            'paid_at' => now(),
         ]);
 
-        $payment = $validated['payment_amount'] ?? $debt->amount;
-        $newAmountPaid = $debt->amount_paid + $payment;
-
-        if ($newAmountPaid >= $debt->amount) {
-            $debt->update([
-                'amount_paid' => $debt->amount,
-                'status' => 'paid',
-                'paid_at' => now(),
-            ]);
-            return back()->with('flash.banner', 'Deuda marcada como pagada en su totalidad.');
-        } else {
-            $debt->update([
-                'amount_paid' => $newAmountPaid,
-            ]);
-            return back()->with('flash.banner', 'Abono registrado correctamente. Saldo pendiente: $' . number_format($debt->amount - $newAmountPaid, 2));
-        }
+        return back()->with('flash.banner', 'Deuda marcada como pagada.');
     }
 
     public function renewService(\App\Models\LicenseTransaction $transaction)

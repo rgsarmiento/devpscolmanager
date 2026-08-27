@@ -46,6 +46,8 @@ Route::middleware([
         Route::resource('service-rates', \App\Http\Controllers\ServiceRateController::class)->only(['store', 'update', 'destroy']);
         Route::resource('debts', \App\Http\Controllers\DebtController::class)->only(['index', 'store']);
         Route::post('/debts/{debt}/pay', [\App\Http\Controllers\DebtController::class, 'pay'])->name('debts.pay');
+        Route::post('/distributor-balances', [\App\Http\Controllers\DistributorBalanceController::class, 'store'])->name('distributor-balances.store');
+        Route::post('/distributor-balances/{balance}/pay', [\App\Http\Controllers\DistributorBalanceController::class, 'pay'])->name('distributor-balances.pay');
         Route::post('/license-transactions/{transaction}/pay', [\App\Http\Controllers\DebtController::class, 'payTransaction'])->name('license-transactions.pay');
         Route::post('/license-transactions/{transaction}/renew', [\App\Http\Controllers\DebtController::class, 'renewService'])->name('license-transactions.renew');
         Route::post('/license-transactions/{transaction}/cancel', [\App\Http\Controllers\DebtController::class, 'cancelService'])->name('license-transactions.cancel');
