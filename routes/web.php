@@ -41,6 +41,7 @@ Route::middleware([
         // Users and Distributors and Debts
         Route::resource('users', \App\Http\Controllers\UserController::class)->except(['create', 'edit', 'show']);
         Route::resource('distributors', \App\Http\Controllers\DistributorController::class);
+        Route::resource('smtp-presets', \App\Http\Controllers\SmtpPresetController::class)->only(['index', 'store', 'destroy']);
         Route::resource('license-packages', \App\Http\Controllers\LicensePackageController::class)->except(['create', 'show', 'edit']);
         Route::resource('folio-rates', \App\Http\Controllers\FolioRateController::class)->only(['store', 'update', 'destroy']);
         Route::resource('service-rates', \App\Http\Controllers\ServiceRateController::class)->only(['store', 'update', 'destroy']);

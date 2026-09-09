@@ -537,6 +537,7 @@ const sendCertWhatsApp = (cert) => {
                                     <tr>
                                         <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Cliente (Datos y Contacto)</th>
                                         <th class="px-4 py-3 text-left text-xs font-bold text-gray-500 uppercase tracking-wider">Vencimiento</th>
+                                        <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Password</th>
                                         <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Días Restantes</th>
                                         <th class="px-4 py-3 text-center text-xs font-bold text-gray-500 uppercase tracking-wider">Acciones</th>
                                     </tr>
@@ -561,6 +562,16 @@ const sendCertWhatsApp = (cert) => {
                                             <span class="px-2 py-1 inline-flex text-xs leading-5 font-semibold rounded-full bg-blue-100 text-blue-800">
                                                 {{ info.certificate_expiration_date ? info.certificate_expiration_date.split('T')[0] : 'N/A' }}
                                             </span>
+                                        </td>
+                                        <td class="px-4 py-4 whitespace-nowrap text-center">
+                                            <div class="flex items-center justify-center gap-2">
+                                                <span v-if="info.showPassword" class="text-sm font-mono bg-gray-100 px-2 py-0.5 rounded">{{ info.certificate_password || 'N/A' }}</span>
+                                                <span v-else class="text-sm font-mono text-gray-400 tracking-widest">••••••</span>
+                                                <button @click="info.showPassword = !info.showPassword" class="text-gray-400 hover:text-indigo-600 transition" :title="info.showPassword ? 'Ocultar' : 'Mostrar'">
+                                                    <svg v-if="!info.showPassword" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                                    <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l18 18" /></svg>
+                                                </button>
+                                            </div>
                                         </td>
                                         <td class="px-4 py-4 whitespace-nowrap text-center">
                                             <span class="text-sm font-black" :class="info.dias_restantes_certificado < 30 ? 'text-red-600' : 'text-amber-500'">

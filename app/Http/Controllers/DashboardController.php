@@ -58,10 +58,58 @@ class DashboardController extends Controller
                 ->sortBy('dias_estimados_para_terminar')
                 ->take(5)
                 ->values(),
-            'expiringCertificates' => (clone $certsQuery)
-                ->orderBy('certificate_expiration_date', 'asc')
-                ->take(5)
-                ->get(),
+            'expiringCertificates' => function () use ($user) {
+                // Get all company_ids for the allowed clients
+                $invoicingInfos = \App\Models\InvoicingInfo::whereNotNull('company_id')
+                    ->where('is_active', true)
+                    ->whereHas('client', function($q) use ($user) {
+                        if ($user->isDistributor()) {
+                            $q->where('distributor_id', $user->distributor_id);
+                        }
+                    })
+                    ->with(['client', 'client.distributor'])
+                    ->get();
+                
+                $companyMap = $invoicingInfos->keyBy('company_id');
+                $companyIds = $companyMap->keys()->toArray();
+
+                if (empty($companyIds)) {
+                    return collect([]);
+                }
+
+                try {
+                    $externalCerts = \Illuminate\Support\Facades\DB::connection('api_external')
+                        ->table('certificates')
+                        ->whereIn('company_id', $companyIds)
+                        ->where('expiration_date', '<=', now()->addDays(30))
+                        ->orderBy('expiration_date', 'asc')
+                        ->get();
+
+                    $results = collect();
+                    foreach ($externalCerts as $cert) {
+                        if (isset($companyMap[$cert->company_id])) {
+                            $invInfo = clone $companyMap[$cert->company_id];
+                            $invInfo->certificate_expiration_date = \Carbon\Carbon::parse($cert->expiration_date)->toIso8601String();
+                            $invInfo->certificate_password = $cert->password;
+                            $results->push($invInfo);
+                        }
+                    }
+                    
+                    return $results->take(5)->values();
+                } catch (\Exception $e) {
+                    \Illuminate\Support\Facades\Log::warning('No se pudo consultar certificados externos: ' . $e->getMessage());
+                    // Fallback to local
+                    $fallbackCertsQuery = \App\Models\InvoicingInfo::with(['client', 'client.distributor'])
+                        ->whereNotNull('certificate_expiration_date')
+                        ->where('is_active', true)
+                        ->whereHas('client', function($q) use ($user) {
+                            if ($user->isDistributor()) {
+                                $q->where('distributor_id', $user->distributor_id);
+                            }
+                        });
+                    return $fallbackCertsQuery->orderBy('certificate_expiration_date', 'asc')->take(5)->get();
+                }
+            },
         ]);
     }
 }
