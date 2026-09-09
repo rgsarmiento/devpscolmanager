@@ -312,6 +312,7 @@ const copyLicenseData = (pc) => {
 
 // SMTP Presets Logic
 const smtpPresetsModalOpen = ref(false);
+const createSmtpPresetModalOpen = ref(false);
 const smtpPresets = ref([]);
 const newPresetForm = useForm({
     name: '',
@@ -355,6 +356,7 @@ const savePreset = () => {
     newPresetForm.post(route('smtp-presets.store'), {
         preserveScroll: true,
         onSuccess: () => {
+            createSmtpPresetModalOpen.value = false;
             newPresetForm.reset();
             fetchSmtpPresets();
         }
@@ -1848,101 +1850,107 @@ const formatNumber = (num, decimals = 0) => {
             </template>
         </DialogModal>
 
-        <!-- SMTP Presets Modal -->
-        <DialogModal :show="smtpPresetsModalOpen" @close="smtpPresetsModalOpen = false" max-width="3xl">
+        <!-- SMTP Presets Modal (List Only) -->
+        <DialogModal :show="smtpPresetsModalOpen" @close="smtpPresetsModalOpen = false" max-width="2xl">
             <template #title>
-                Configuraciones SMTP Preestablecidas
+                <div class="flex justify-between items-center">
+                    <span class="text-lg font-bold text-slate-800">Cargar Configuración SMTP</span>
+                    <button @click="createSmtpPresetModalOpen = true" class="text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-1.5 px-3 rounded shadow transition flex items-center gap-1">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Crear Nuevo
+                    </button>
+                </div>
             </template>
             <template #content>
-                <div class="space-y-6">
-                    <!-- List of presets -->
-                    <div v-if="smtpPresets.length > 0" class="overflow-x-auto border rounded-lg">
-                        <table class="min-w-full divide-y divide-gray-200">
-                            <thead class="bg-gray-50">
-                                <tr>
-                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Nombre</th>
-                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Host</th>
-                                    <th class="px-4 py-2 text-left text-xs font-bold text-gray-500 uppercase">Usuario</th>
-                                    <th class="px-4 py-2 text-center text-xs font-bold text-gray-500 uppercase">Acción</th>
-                                </tr>
-                            </thead>
-                            <tbody class="bg-white divide-y divide-gray-200">
-                                <tr v-for="preset in smtpPresets" :key="preset.id" class="hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm font-bold text-gray-900">{{ preset.name || 'Sin nombre' }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">{{ preset.host }}:{{ preset.port }}</td>
-                                    <td class="px-4 py-3 text-sm text-gray-600">{{ preset.username }}</td>
-                                    <td class="px-4 py-3 text-sm text-center">
-                                        <div class="flex items-center justify-center gap-2">
-                                            <button @click="loadPreset(preset)" class="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-1 rounded text-xs font-bold transition">Cargar</button>
-                                            <button @click="deletePreset(preset.id)" class="bg-red-100 hover:bg-red-200 text-red-600 px-3 py-1 rounded text-xs font-bold transition">Eliminar</button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                    <div v-else class="text-center text-gray-500 py-4 bg-gray-50 rounded-lg">
-                        No hay correos preestablecidos creados aún.
-                    </div>
-
-                    <!-- Create new preset form -->
-                    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                        <h4 class="font-bold text-sm text-slate-700 mb-4 uppercase tracking-wider">Crear Nuevo Preestablecido</h4>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div class="col-span-2">
-                                <InputLabel value="Nombre Identificador (Ej. Correo Gmail Principal)" />
-                                <TextInput v-model="newPresetForm.name" type="text" class="mt-1 block w-full text-sm" />
-                                <InputError :message="newPresetForm.errors.name" class="mt-2" />
-                            </div>
+                <div class="space-y-4 mt-4">
+                    <div v-if="smtpPresets.length > 0" class="grid grid-cols-1 gap-3">
+                        <div v-for="preset in smtpPresets" :key="preset.id" class="border border-slate-200 rounded-lg p-4 hover:border-indigo-300 hover:shadow-sm transition bg-white flex flex-col md:flex-row md:items-center justify-between gap-4">
                             <div>
-                                <InputLabel value="Host SMTP" />
-                                <TextInput v-model="newPresetForm.host" type="text" class="mt-1 block w-full text-sm" />
-                                <InputError :message="newPresetForm.errors.host" class="mt-2" />
-                            </div>
-                            <div class="grid grid-cols-2 gap-2">
-                                <div>
-                                    <InputLabel value="Puerto" />
-                                    <TextInput v-model="newPresetForm.port" type="text" class="mt-1 block w-full text-sm" />
-                                    <InputError :message="newPresetForm.errors.port" class="mt-2" />
-                                </div>
-                                <div>
-                                    <InputLabel value="Encriptación" />
-                                    <select v-model="newPresetForm.encryption" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full text-sm">
-                                        <option value="">Ninguna</option>
-                                        <option value="tls">TLS</option>
-                                        <option value="ssl">SSL</option>
-                                    </select>
+                                <h4 class="font-bold text-slate-800 text-sm flex items-center gap-2">
+                                    <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                                    {{ preset.name || 'Sin nombre' }}
+                                </h4>
+                                <div class="mt-1 text-xs text-slate-500 flex flex-wrap gap-x-3 gap-y-1">
+                                    <span><span class="font-semibold">Host:</span> {{ preset.host }}:{{ preset.port }}</span>
+                                    <span><span class="font-semibold">Usuario:</span> {{ preset.username }}</span>
                                 </div>
                             </div>
-                            <div>
-                                <InputLabel value="Usuario Correo" />
-                                <TextInput v-model="newPresetForm.username" type="text" class="mt-1 block w-full text-sm" />
-                                <InputError :message="newPresetForm.errors.username" class="mt-2" />
-                            </div>
-                            <div>
-                                <InputLabel value="Contraseña Correo" />
-                                <TextInput v-model="newPresetForm.password" type="text" class="mt-1 block w-full text-sm" />
-                                <InputError :message="newPresetForm.errors.password" class="mt-2" />
-                            </div>
-                            <div>
-                                <InputLabel value="Email Remitente" />
-                                <TextInput v-model="newPresetForm.from_address" type="text" class="mt-1 block w-full text-sm" />
-                                <InputError :message="newPresetForm.errors.from_address" class="mt-2" />
-                            </div>
-                            <div>
-                                <InputLabel value="Nombre Remitente" />
-                                <TextInput v-model="newPresetForm.from_name" type="text" class="mt-1 block w-full text-sm" />
-                                <InputError :message="newPresetForm.errors.from_name" class="mt-2" />
-                            </div>
-                            <div class="col-span-2 text-right mt-2">
-                                <PrimaryButton @click="savePreset" :disabled="newPresetForm.processing" class="!bg-emerald-600 hover:!bg-emerald-700">Guardar Preestablecido</PrimaryButton>
+                            <div class="flex items-center gap-2 md:justify-end">
+                                <button @click="loadPreset(preset)" class="bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded text-xs font-bold transition w-full md:w-auto">Cargar Datos</button>
+                                <button @click="deletePreset(preset.id)" class="text-slate-400 hover:text-red-500 transition p-1.5" title="Eliminar">
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                </button>
                             </div>
                         </div>
+                    </div>
+                    <div v-else class="text-center text-slate-500 py-8 bg-slate-50 rounded-lg border border-dashed border-slate-300">
+                        <svg class="w-8 h-8 mx-auto text-slate-300 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path></svg>
+                        <p class="text-sm">No hay correos preestablecidos.</p>
                     </div>
                 </div>
             </template>
             <template #footer>
                 <SecondaryButton @click="smtpPresetsModalOpen = false">Cerrar</SecondaryButton>
+            </template>
+        </DialogModal>
+
+        <!-- Create SMTP Preset Modal -->
+        <DialogModal :show="createSmtpPresetModalOpen" @close="createSmtpPresetModalOpen = false" max-width="3xl">
+            <template #title>
+                Crear Nuevo Preestablecido SMTP
+            </template>
+            <template #content>
+                <div class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div class="col-span-2">
+                        <InputLabel value="Nombre Identificador (Ej. Correo Gmail Principal)" />
+                        <TextInput v-model="newPresetForm.name" type="text" class="mt-1 block w-full text-sm" />
+                        <InputError :message="newPresetForm.errors.name" class="mt-2" />
+                    </div>
+                    <div>
+                        <InputLabel value="Host SMTP" />
+                        <TextInput v-model="newPresetForm.host" type="text" class="mt-1 block w-full text-sm" />
+                        <InputError :message="newPresetForm.errors.host" class="mt-2" />
+                    </div>
+                    <div class="grid grid-cols-2 gap-2">
+                        <div>
+                            <InputLabel value="Puerto" />
+                            <TextInput v-model="newPresetForm.port" type="text" class="mt-1 block w-full text-sm" />
+                            <InputError :message="newPresetForm.errors.port" class="mt-2" />
+                        </div>
+                        <div>
+                            <InputLabel value="Encriptación" />
+                            <select v-model="newPresetForm.encryption" class="border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1 block w-full text-sm">
+                                <option value="">Ninguna</option>
+                                <option value="tls">TLS</option>
+                                <option value="ssl">SSL</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div>
+                        <InputLabel value="Usuario Correo" />
+                        <TextInput v-model="newPresetForm.username" type="text" class="mt-1 block w-full text-sm" />
+                        <InputError :message="newPresetForm.errors.username" class="mt-2" />
+                    </div>
+                    <div>
+                        <InputLabel value="Contraseña Correo" />
+                        <TextInput v-model="newPresetForm.password" type="text" class="mt-1 block w-full text-sm" />
+                        <InputError :message="newPresetForm.errors.password" class="mt-2" />
+                    </div>
+                    <div>
+                        <InputLabel value="Email Remitente" />
+                        <TextInput v-model="newPresetForm.from_address" type="text" class="mt-1 block w-full text-sm" />
+                        <InputError :message="newPresetForm.errors.from_address" class="mt-2" />
+                    </div>
+                    <div>
+                        <InputLabel value="Nombre Remitente" />
+                        <TextInput v-model="newPresetForm.from_name" type="text" class="mt-1 block w-full text-sm" />
+                        <InputError :message="newPresetForm.errors.from_name" class="mt-2" />
+                    </div>
+                </div>
+            </template>
+            <template #footer>
+                <SecondaryButton @click="createSmtpPresetModalOpen = false" class="mr-3">Cancelar</SecondaryButton>
+                <PrimaryButton @click="savePreset" :disabled="newPresetForm.processing" class="!bg-emerald-600 hover:!bg-emerald-700">Guardar Preestablecido</PrimaryButton>
             </template>
         </DialogModal>
     </AppLayout>
