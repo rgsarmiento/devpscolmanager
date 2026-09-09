@@ -21,6 +21,14 @@ class CertificateController extends Controller
             });
         }
 
+        $search = $request->input('search');
+        if ($search) {
+            $invoicingInfosQuery->whereHas('client', function($q) use ($search) {
+                $q->where('name', 'like', "%{$search}%")
+                  ->orWhere('nit', 'like', "%{$search}%");
+            });
+        }
+
         $invoicingInfos = $invoicingInfosQuery->get();
         $companyMap = $invoicingInfos->keyBy('company_id');
         $companyIds = $companyMap->keys()->toArray();
@@ -74,12 +82,15 @@ class CertificateController extends Controller
                     });
                 }
 
-                $certificates = $fallbackQuery->orderBy('certificate_expiration_date', 'asc')->paginate($perPage);
+                $certificates = $fallbackQuery->orderBy('certificate_expiration_date', 'asc')->paginate($perPage)->withQueryString();
             }
         }
 
         return \Inertia\Inertia::render('Certificates/Index', [
-            'certificates' => $certificates
+            'certificates' => $certificates,
+            'filters' => [
+                'search' => $search
+            ]
         ]);
     }
 }
