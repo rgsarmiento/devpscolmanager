@@ -354,32 +354,19 @@ class ClientController extends Controller
             ->paginate($perPage, ['*'], 'page_pc')
             ->withQueryString();
 
-        // Get Plan Info from External DB if NIT exists
+        // Get Plan Info from local DB (fast load). 
+        // For fresh data, users use the "Actualizar Plan" (refreshPlan) feature.
         $planInfo = null;
-        if ($client->nit) {
-            try {
-                $planInfo = $billingService->getPlanInfo($client->nit);
-                
-                // Persist/Sync data to DB for the list view
-                if ($planInfo && isset($planInfo['success']) && $planInfo['success']) {
-                    $client->invoicingInfo()->updateOrCreate(
-                        ['client_id' => $client->id],
-                        [
-                            'folios_total' => $planInfo['absolut_plan_documents'] ?? ($client->invoicingInfo->folios_total ?? 0),
-                            'folios_remaining' => $planInfo['docs_left_absolut'] ?? ($client->invoicingInfo->folios_remaining ?? 0),
-                            'plan_start_date' => $planInfo['absolut_start_plan_date'] ?? ($client->invoicingInfo->plan_start_date ?? null),
-                            'days_transpired' => $planInfo['dias_transcurridos'] ?? 0,
-                            'avg_folios_per_day' => $planInfo['promedio_folios_usados_por_dia'] ?? 0,
-                            'estimated_days_to_depletion' => $planInfo['dias_estimados_para_terminar'] ?? 0,
-                        ]
-                    );
-                    // Refresh the relationship after updateOrCreate to ensure $client->invoicingInfo is populated
-                    $client->load('invoicingInfo');
-                }
-            } catch (\Exception $e) {
-                // Silently fail or log, we don't want to break the whole view
-                \Illuminate\Support\Facades\Log::warning("Could not fetch plan info for client {$id}: " . $e->getMessage());
-            }
+        if ($client->invoicingInfo && $client->nit) {
+            $planInfo = [
+                'absolut_plan_documents' => $client->invoicingInfo->folios_total,
+                'docs_left_absolut' => $client->invoicingInfo->folios_remaining,
+                'absolut_start_plan_date' => $client->invoicingInfo->plan_start_date,
+                'dias_transcurridos' => $client->invoicingInfo->dias_transcurridos,
+                'promedio_folios_usados_por_dia' => $client->invoicingInfo->promedio_folios_usados_por_dia,
+                'dias_estimados_para_terminar' => $client->invoicingInfo->dias_estimados_para_terminar,
+                'success' => true
+            ];
         }
 
         $serviceRates = \App\Models\ServiceRate::orderBy('name')->get();
