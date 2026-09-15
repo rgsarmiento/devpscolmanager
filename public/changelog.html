@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Control de Cambios</title>
+    <style>
+        /* =====================================================================
+           ESTILOS (Dark Mode) - Vanilla CSS para no depender de librerías externas
+           ===================================================================== */
+        :root {
+            --bg-color: #0f1115;
+            --bg-card: #1e2128;
+            --text-main: #e2e8f0;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
+            --primary: #3b82f6;
+            
+            /* Colores de Badges */
+            --c-feature-bg: rgba(34, 197, 94, 0.15);
+            --c-feature-text: #4ade80;
+            --c-improvement-bg: rgba(59, 130, 246, 0.15);
+            --c-improvement-text: #60a5fa;
+            --c-fix-bg: rgba(245, 158, 11, 0.15);
+            --c-fix-text: #fbbf24;
+            --c-breaking-bg: rgba(239, 68, 68, 0.15);
+            --c-breaking-text: #f87171;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            line-height: 1.6;
+            padding: 2rem;
+            max-width: 900px;
+            margin: 0 auto;
+        }
+
+        header {
+            margin-bottom: 2.5rem;
+            text-align: center;
+        }
+
+        h1 {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+            color: #ffffff;
+        }
+
+        p.subtitle {
+            color: var(--text-muted);
+            font-size: 1rem;
+        }
+
+        /* Controles (Buscador y Filtros) */
+        .controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 2rem;
+            background: var(--bg-card);
+            padding: 1.25rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .search-bar {
+            flex: 1;
+            min-width: 250px;
+        }
+
+        .search-bar input {
+            width: 100%;
+            padding: 0.75rem 1rem;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            color: var(--text-main);
+            font-size: 0.95rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .search-bar input:focus {
+            border-color: var(--primary);
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .filter-btn {
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .filter-btn:hover {
+            border-color: var(--text-muted);
+            color: var(--text-main);
+        }
+
+        .filter-btn.active {
+            background: var(--primary);
+            color: #fff;
+            border-color: var(--primary);
+        }
+
+        /* Timeline */
+        .timeline {
+            position: relative;
+            padding-left: 2rem;
+        }
+
+        .timeline::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            left: 7px;
+            width: 2px;
+            background: var(--border-color);
+        }
+
+        .version-card {
+            position: relative;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            transition: transform 0.2s;
+        }
+
+        /* Dot on timeline */
+        .version-card::before {
+            content: '';
+            position: absolute;
+            top: 1.8rem;
+            left: -2.3rem;
+            width: 14px;
+            height: 14px;
+            border-radius: 50%;
+            background: var(--primary);
+            border: 3px solid var(--bg-color);
+            z-index: 1;
+        }
+
+        .version-header {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.25rem;
+            padding-bottom: 1rem;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .version-title {
+            font-size: 1.4rem;
+            font-weight: 700;
+            color: #fff;
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+        }
+
+        .module-chip {
+            background: #334155;
+            color: #cbd5e1;
+            padding: 0.25rem 0.75rem;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+        }
+
+        .date {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            margin-left: auto;
+        }
+
+        /* Latest version animated tag */
+        .latest-badge {
+            background: linear-gradient(45deg, #3b82f6, #8b5cf6);
+            color: white;
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            text-transform: uppercase;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7); }
+            70% { box-shadow: 0 0 0 6px rgba(59, 130, 246, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(59, 130, 246, 0); }
+        }
+
+        /* Cambios */
+        .changes-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .change-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .change-type {
+            font-size: 0.75rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 6px;
+            text-transform: uppercase;
+            min-width: 100px;
+            text-align: center;
+            flex-shrink: 0;
+            margin-top: 2px;
+        }
+
+        .type-feature { background: var(--c-feature-bg); color: var(--c-feature-text); border: 1px solid rgba(74, 222, 128, 0.2); }
+        .type-improvement { background: var(--c-improvement-bg); color: var(--c-improvement-text); border: 1px solid rgba(96, 165, 250, 0.2); }
+        .type-fix { background: var(--c-fix-bg); color: var(--c-fix-text); border: 1px solid rgba(251, 191, 36, 0.2); }
+        .type-breaking { background: var(--c-breaking-bg); color: var(--c-breaking-text); border: 1px solid rgba(248, 113, 113, 0.2); }
+
+        .change-text {
+            color: var(--text-main);
+        }
+
+        .no-results {
+            text-align: center;
+            padding: 3rem;
+            color: var(--text-muted);
+            background: var(--bg-card);
+            border-radius: 12px;
+            border: 1px dashed var(--border-color);
+        }
+
+        @media (max-width: 600px) {
+            .version-header {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 0.5rem;
+            }
+            .date {
+                margin-left: 0;
+            }
+            .change-item {
+                flex-direction: column;
+                gap: 0.3rem;
+            }
+            .change-type {
+                min-width: auto;
+                display: inline-block;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>Historial de Actualizaciones</h1>
+        <p class="subtitle">Descubre las nuevas características y mejoras de nuestra plataforma.</p>
+    </header>
+
+    <div class="controls">
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="🔍 Buscar cambios, módulos o versiones...">
+        </div>
+        <div class="filters" id="filterContainer">
+            <!-- Botones generados dinámicamente -->
+        </div>
+    </div>
+
+    <div class="timeline" id="timeline">
+        <!-- Contenido generado dinámicamente -->
+    </div>
+
+    <!-- =====================================================================
+         DATOS DEL CHANGELOG
+         Cargados desde un archivo externo para que solo tengas que modificar y subir "changelog_data.js"
+         ===================================================================== -->
+    <script src="changelog_data.js"></script>
+
+    <!-- =====================================================================
+         LÓGICA DEL RENDERIZADO Y BÚSQUEDA
+         ===================================================================== -->
+    <script>
+        const timelineEl = document.getElementById('timeline');
+        const searchInput = document.getElementById('searchInput');
+        const filterContainer = document.getElementById('filterContainer');
+
+        let currentFilter = 'all';
+        let currentSearch = '';
+
+        const typeLabels = {
+            'all': 'Todos',
+            'feature': 'Nuevas Funciones',
+            'improvement': 'Mejoras',
+            'fix': 'Correcciones',
+            'breaking': 'Cambios Críticos'
+        };
+
+        // 1. Inicializar Filtros
+        function renderFilters() {
+            filterContainer.innerHTML = '';
+            Object.keys(typeLabels).forEach(type => {
+                const btn = document.createElement('button');
+                btn.className = `filter-btn ${type === currentFilter ? 'active' : ''}`;
+                btn.innerText = typeLabels[type];
+                btn.onclick = () => {
+                    currentFilter = type;
+                    renderFilters(); // Re-render para actualizar la clase 'active'
+                    renderTimeline();
+                };
+                filterContainer.appendChild(btn);
+            });
+        }
+
+        // 2. Renderizar Timeline
+        function renderTimeline() {
+            timelineEl.innerHTML = '';
+            
+            // Filtrar datos
+            const filteredData = changelogData.map((release, index) => {
+                // Filtrar por búsqueda de texto
+                const matchesSearch = currentSearch === '' || 
+                    release.version.toLowerCase().includes(currentSearch) ||
+                    release.module.toLowerCase().includes(currentSearch) ||
+                    release.changes.some(c => c.text.toLowerCase().includes(currentSearch));
+
+                if (!matchesSearch) return null;
+
+                // Filtrar por tipo
+                const filteredChanges = currentFilter === 'all' 
+                    ? release.changes 
+                    : release.changes.filter(c => c.type === currentFilter);
+
+                // Si no hay cambios de este tipo, o no pasó el buscador, omitir
+                if (filteredChanges.length === 0) return null;
+
+                return { ...release, changes: filteredChanges, isLatest: index === 0 };
+            }).filter(item => item !== null);
+
+            if (filteredData.length === 0) {
+                timelineEl.innerHTML = `<div class="no-results">No se encontraron resultados para la búsqueda actual.</div>`;
+                return;
+            }
+
+            // Crear HTML
+            filteredData.forEach(release => {
+                const card = document.createElement('div');
+                card.className = 'version-card';
+
+                const latestBadgeHTML = release.isLatest ? `<span class="latest-badge">Última Versión</span>` : '';
+                
+                let changesHTML = release.changes.map(change => {
+                    let typeLabel = '';
+                    switch(change.type) {
+                        case 'feature': typeLabel = 'Feature'; break;
+                        case 'improvement': typeLabel = 'Mejora'; break;
+                        case 'fix': typeLabel = 'Fix'; break;
+                        case 'breaking': typeLabel = 'Breaking'; break;
+                    }
+                    return `
+                        <li class="change-item">
+                            <span class="change-type type-${change.type}">${typeLabel}</span>
+                            <span class="change-text">${highlightText(change.text, currentSearch)}</span>
+                        </li>
+                    `;
+                }).join('');
+
+                card.innerHTML = `
+                    <div class="version-header">
+                        <div class="version-title">
+                            v${highlightText(release.version, currentSearch)}
+                            ${latestBadgeHTML}
+                        </div>
+                        <span class="module-chip">${highlightText(release.module, currentSearch)}</span>
+                        <span class="date">${formatDate(release.date)}</span>
+                    </div>
+                    <ul class="changes-list">
+                        ${changesHTML}
+                    </ul>
+                `;
+                timelineEl.appendChild(card);
+            });
+        }
+
+        // 3. Funciones de utilidad
+        function formatDate(dateStr) {
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            const date = new Date(dateStr + 'T12:00:00Z'); // Evitar timezone offset issues
+            return date.toLocaleDateString('es-ES', options);
+        }
+
+        function highlightText(text, search) {
+            if (!search) return text;
+            const regex = new RegExp(`(${search})`, 'gi');
+            return text.replace(regex, '<mark style="background: rgba(251, 191, 36, 0.4); color: inherit; border-radius: 2px;">$1</mark>');
+        }
+
+        // 4. Listeners
+        searchInput.addEventListener('input', (e) => {
+            currentSearch = e.target.value.toLowerCase().trim();
+            renderTimeline();
+        });
+
+        // Init
+        renderFilters();
+        renderTimeline();
+    </script>
+</body>
+</html>
