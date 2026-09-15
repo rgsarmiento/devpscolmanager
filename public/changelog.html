@@ -365,6 +365,10 @@
                 // Si no hay cambios de este tipo, o no pasó el buscador, omitir
                 if (filteredChanges.length === 0) return null;
 
+                // Ordenar los cambios: feature -> improvement -> fix -> breaking
+                const sortOrder = { 'breaking': 1, 'feature': 2, 'improvement': 3, 'fix': 4 };
+                filteredChanges.sort((a, b) => sortOrder[a.type] - sortOrder[b.type]);
+
                 return { ...release, changes: filteredChanges, isLatest: index === 0 };
             }).filter(item => item !== null);
 
@@ -391,7 +395,7 @@
                     return `
                         <li class="change-item">
                             <span class="change-type type-${change.type}">${typeLabel}</span>
-                            <span class="change-text">${highlightText(change.text, currentSearch)}</span>
+                            <span class="change-text">${formatChangeText(change.text, currentSearch)}</span>
                         </li>
                     `;
                 }).join('');
@@ -424,6 +428,23 @@
             if (!search) return text;
             const regex = new RegExp(`(${search})`, 'gi');
             return text.replace(regex, '<mark style="background: rgba(251, 191, 36, 0.4); color: inherit; border-radius: 2px;">$1</mark>');
+        }
+
+        function formatChangeText(text, search) {
+            let result = text;
+            // Buscar el prefijo del módulo antes de los dos puntos (ej: "Cartera:")
+            const match = text.match(/^([^:]+):(.*)$/);
+            if (match) {
+                const prefix = match[1] + ':';
+                const rest = match[2];
+                const hlPrefix = highlightText(prefix, search);
+                const hlRest = highlightText(rest, search);
+                // Resaltar el texto del módulo con un color más claro y en negrita
+                result = `<span style="color: #f8fafc; font-weight: 700;">${hlPrefix}</span>${hlRest}`;
+            } else {
+                result = highlightText(text, search);
+            }
+            return result;
         }
 
         // 4. Listeners
