@@ -387,10 +387,10 @@
                 let changesHTML = release.changes.map(change => {
                     let typeLabel = '';
                     switch(change.type) {
-                        case 'feature': typeLabel = 'Feature'; break;
+                        case 'feature': typeLabel = 'Nuevo'; break;
                         case 'improvement': typeLabel = 'Mejora'; break;
-                        case 'fix': typeLabel = 'Fix'; break;
-                        case 'breaking': typeLabel = 'Breaking'; break;
+                        case 'fix': typeLabel = 'Corrección'; break;
+                        case 'breaking': typeLabel = 'Crítico'; break;
                     }
                     return `
                         <li class="change-item">
