@@ -215,7 +215,8 @@ const generateLicense = async () => {
         const response = await axios.post(route('computers.generate-license'), {
             pin: computerForm.pin,
             expiration_date: computerForm.expiration_date,
-            client_id: props.client.id
+            client_id: props.client.id,
+            license_type: computerForm.license_type
         });
         if (response.data && response.data.license_key) {
             computerForm.license_key = response.data.license_key;
@@ -1690,6 +1691,7 @@ const formatNumber = (num, decimals = 0) => {
                             <select id="license_type" v-model="computerForm.license_type" class="border-gray-200 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl mt-1 block w-full shadow-sm text-sm">
                                 <option value="normal">Licencia Estándar</option>
                                 <option value="vinculado">Licencia Vinculada</option>
+                                <option value="contabilidad">Licencia con Contabilidad</option>
                             </select>
                         </div>
 

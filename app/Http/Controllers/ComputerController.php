@@ -91,7 +91,7 @@ class ComputerController extends Controller
             'pin' => 'nullable|string',
             'observation' => 'nullable|string',
             'expiration_date' => 'nullable|date',
-            'license_type' => 'required|in:normal,vinculado',
+            'license_type' => 'required|in:normal,vinculado,contabilidad',
             'is_active' => 'boolean',
         ]);
 
@@ -154,7 +154,7 @@ class ComputerController extends Controller
             'pin' => 'nullable|string',
             'observation' => 'nullable|string',
             'expiration_date' => 'nullable|date',
-            'license_type' => 'required|in:normal,vinculado',
+            'license_type' => 'required|in:normal,vinculado,contabilidad',
             'is_active' => 'boolean',
         ]);
 
@@ -191,6 +191,7 @@ class ComputerController extends Controller
             'pin' => 'required|string',
             'expiration_date' => 'required|date',
             'client_id' => 'required|exists:clients,id',
+            'license_type' => 'nullable|in:normal,vinculado,contabilidad',
         ]);
 
         $client = \App\Models\Client::findOrFail($request->client_id);
@@ -225,6 +226,18 @@ class ComputerController extends Controller
             }
 
             $fechaFormateada = \Carbon\Carbon::parse($request->expiration_date)->format('d-m-Y');
+            
+            // Append suffix based on license type:
+            // normal → "dd-mm-yyyy"
+            // vinculado → "dd-mm-yyyy,1,0"
+            // contabilidad → "dd-mm-yyyy,0,1"
+            $licenseType = $request->input('license_type', 'normal');
+            if ($licenseType === 'vinculado') {
+                $fechaFormateada .= ',1,0';
+            } elseif ($licenseType === 'contabilidad') {
+                $fechaFormateada .= ',0,1';
+            }
+            
             $licenseKey = LicenseService::encrypt($fechaFormateada, $keyPart);
 
             return response()->json([
@@ -244,6 +257,12 @@ class ComputerController extends Controller
 
         // Default behavior if something bypassed the above
         $fechaFormateada = \Carbon\Carbon::parse($request->expiration_date)->format('d-m-Y');
+        $licenseType = $request->input('license_type', 'normal');
+        if ($licenseType === 'vinculado') {
+            $fechaFormateada .= ',1,0';
+        } elseif ($licenseType === 'contabilidad') {
+            $fechaFormateada .= ',0,1';
+        }
         $licenseKey = LicenseService::encrypt($fechaFormateada, $keyPart);
 
         return response()->json(['license_key' => $licenseKey]);
