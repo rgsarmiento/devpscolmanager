@@ -25,7 +25,7 @@ class LicensePackageController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:distributor,direct',
+            'type' => 'required|in:distributor,direct,contabilidad_distributor,contabilidad_direct',
             'min_licenses' => 'required|integer|min:1',
             'max_licenses' => 'required|integer|min:1|gte:min_licenses',
             'total_price' => 'required|numeric|min:0',
@@ -39,7 +39,7 @@ class LicensePackageController extends Controller
     {
         $validated = $request->validate([
             'name' => 'required|string|max:255',
-            'type' => 'required|in:distributor,direct',
+            'type' => 'required|in:distributor,direct,contabilidad_distributor,contabilidad_direct',
             'min_licenses' => 'required|integer|min:1',
             'max_licenses' => 'required|integer|min:1|gte:min_licenses',
             'total_price' => 'required|numeric|min:0',

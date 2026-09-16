@@ -250,6 +250,66 @@ const formatCurrency = (value) => {
                             </tbody>
                         </table>
                     </div>
+
+                    <!-- Paquetes Contabilidad - Distribuidores -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-1">Paquetes para Distribuidores <span class="text-purple-600">(Contabilidad)</span></h3>
+                        <p class="text-xs text-gray-400 mb-4">Se aplican a renovaciones de licencias con contabilidad de distribuidores.</p>
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-purple-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre / Rango</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cantidad</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor Total</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="pkg in packages.filter(p => p.type === 'contabilidad_distributor')" :key="pkg.id">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ pkg.name }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ pkg.min_licenses }} a {{ pkg.max_licenses }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-purple-600">{{ formatCurrency(pkg.total_price) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @click="openEditModal(pkg)" class="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
+                                        <button @click="deletePackage(pkg)" class="text-red-600 hover:text-red-900">Eliminar</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="packages.filter(p => p.type === 'contabilidad_distributor').length === 0">
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-400 italic">Sin paquetes de contabilidad para distribuidores. Agrégalos cuando definas el precio.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paquetes Contabilidad - Directos -->
+                    <div class="mb-8">
+                        <h3 class="text-lg font-bold text-gray-800 mb-1">Paquetes para Clientes Directos <span class="text-purple-600">(Contabilidad)</span></h3>
+                        <p class="text-xs text-gray-400 mb-4">Se aplican a renovaciones de licencias con contabilidad de clientes directos.</p>
+                        <table class="min-w-full divide-y divide-gray-200">
+                            <thead class="bg-purple-50">
+                                <tr>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Nombre / Rango</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Cantidad</th>
+                                    <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Valor Total</th>
+                                    <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody class="bg-white divide-y divide-gray-200">
+                                <tr v-for="pkg in packages.filter(p => p.type === 'contabilidad_direct')" :key="pkg.id">
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{{ pkg.name }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{{ pkg.min_licenses }} a {{ pkg.max_licenses }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-sm font-bold text-purple-600">{{ formatCurrency(pkg.total_price) }}</td>
+                                    <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                                        <button @click="openEditModal(pkg)" class="text-indigo-600 hover:text-indigo-900 mr-4">Editar</button>
+                                        <button @click="deletePackage(pkg)" class="text-red-600 hover:text-red-900">Eliminar</button>
+                                    </td>
+                                </tr>
+                                <tr v-if="packages.filter(p => p.type === 'contabilidad_direct').length === 0">
+                                    <td colspan="4" class="px-6 py-4 text-center text-gray-400 italic">Sin paquetes de contabilidad para directos. Agrégalos cuando definas el precio.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
                 <!-- Folio Rates -->
@@ -337,8 +397,10 @@ const formatCurrency = (value) => {
                     <div>
                         <InputLabel value="Tipo de Tarifa" class="font-bold text-gray-700" />
                         <select v-model="form.type" class="w-full border-gray-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-md shadow-sm mt-1">
-                            <option value="distributor">Para Distribuidores</option>
-                            <option value="direct">Para Clientes Directos</option>
+                            <option value="distributor">Para Distribuidores (Estándar)</option>
+                            <option value="direct">Para Clientes Directos (Estándar)</option>
+                            <option value="contabilidad_distributor">Para Distribuidores (Contabilidad)</option>
+                            <option value="contabilidad_direct">Para Clientes Directos (Contabilidad)</option>
                         </select>
                         <InputError :message="form.errors.type" class="mt-2" />
                     </div>

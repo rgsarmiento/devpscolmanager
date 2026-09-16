@@ -97,7 +97,7 @@ class DebtController extends Controller
         ]);
 
         $client = \App\Models\Client::with(['licenseTransactions' => function($q) {
-            $q->where('status', 'pending');
+            $q->where('status', 'pending')->with('computer');
         }])->findOrFail($validated['client_id']);
 
         $transactions = $client->licenseTransactions;
@@ -172,34 +172,75 @@ class DebtController extends Controller
             return ['amount' => 0, 'details' => []];
         }
 
-        $newCount = $transactions->where('type', 'new')->count();
-        $renewalCount = $transactions->where('type', 'renewal')->count();
-        $foliosTx = $transactions->whereIn('type', ['folios', 'unlimited_folios'])->first();
+        $newTxs    = $transactions->where('type', 'new');
+        $renewalTxs = $transactions->where('type', 'renewal');
+        $foliosTx  = $transactions->whereIn('type', ['folios', 'unlimited_folios'])->first();
         $serviceTxs = $transactions->where('type', 'service');
+
+        // Helper: get license_type from a transaction's related computer
+        $getLicenseType = fn($tx) => $tx->computer?->license_type ?? 'normal';
+
+        // ── NEW LICENSES ──────────────────────────────────────────────────────
+        // normal → $450,000 each
+        $newNormal = $newTxs->filter(fn($tx) => $getLicenseType($tx) === 'normal')->count();
+        // vinculado → $225,000 each (half of new standard)
+        $newVinculado = $newTxs->filter(fn($tx) => $getLicenseType($tx) === 'vinculado')->count();
+        // contabilidad → price TBD
+        $newContabilidad = $newTxs->filter(fn($tx) => $getLicenseType($tx) === 'contabilidad')->count();
 
         $amount = 0;
         $details = [];
 
-        if ($newCount > 0) {
-            $amount += $newCount * 450000;
-            $details[] = "{$newCount} licencias nuevas ($450,000 c/u)";
+        if ($newNormal > 0) {
+            $amount += $newNormal * 450000;
+            $details[] = "{$newNormal} lic. nueva(s) estándar ($450,000 c/u)";
+        }
+        if ($newVinculado > 0) {
+            $amount += $newVinculado * 225000;
+            $details[] = "{$newVinculado} lic. nueva(s) vinculada ($225,000 c/u)";
+        }
+        if ($newContabilidad > 0) {
+            // Price not yet defined — annotate for visibility but do not add to amount
+            $details[] = "{$newContabilidad} lic. nueva(s) contabilidad (Sin tarifa definida)";
         }
 
-        if ($renewalCount > 0) {
+        // ── RENEWALS ──────────────────────────────────────────────────────────
+        // normal + vinculado → use standard package (both count equally for tier)
+        $renewalStandard = $renewalTxs->filter(fn($tx) => in_array($getLicenseType($tx), ['normal', 'vinculado']))->count();
+        // contabilidad → own package type
+        $renewalContabilidad = $renewalTxs->filter(fn($tx) => $getLicenseType($tx) === 'contabilidad')->count();
+
+        if ($renewalStandard > 0) {
             $package = \App\Models\LicensePackage::where('type', $type)
-                ->where('min_licenses', '<=', $renewalCount)
-                ->where('max_licenses', '>=', $renewalCount)
+                ->where('min_licenses', '<=', $renewalStandard)
+                ->where('max_licenses', '>=', $renewalStandard)
                 ->first();
 
             if ($package) {
                 $amount += $package->total_price;
-                $details[] = "{$renewalCount} renov. (Paquete: {$package->name})";
+                $details[] = "{$renewalStandard} renov. estándar/vinc. (Paquete: {$package->name})";
             } else {
                 $largest = \App\Models\LicensePackage::where('type', $type)->orderByDesc('max_licenses')->first();
                 if ($largest) {
                     $amount += $largest->total_price;
-                    $details[] = "{$renewalCount} renov. (Aplica paquete: {$largest->name})";
+                    $details[] = "{$renewalStandard} renov. estándar/vinc. (Aplica paquete: {$largest->name})";
                 }
+            }
+        }
+
+        if ($renewalContabilidad > 0) {
+            // contabilidad uses its own package type: 'contabilidad_distributor' or 'contabilidad_direct'
+            $contabType = ($type === 'distributor') ? 'contabilidad_distributor' : 'contabilidad_direct';
+            $contabPackage = \App\Models\LicensePackage::where('type', $contabType)
+                ->where('min_licenses', '<=', $renewalContabilidad)
+                ->where('max_licenses', '>=', $renewalContabilidad)
+                ->first();
+
+            if ($contabPackage) {
+                $amount += $contabPackage->total_price;
+                $details[] = "{$renewalContabilidad} renov. contabilidad (Paquete: {$contabPackage->name})";
+            } else {
+                $details[] = "{$renewalContabilidad} renov. contabilidad (Sin paquete definido aún)";
             }
         }
 
