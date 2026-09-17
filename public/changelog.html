@@ -421,6 +421,18 @@
                     `;
                 }).join('');
 
+                const v = (release.version || '').trim();
+                const stdFile = `${v}.zip`;
+                const smallFile = `${v}s.zip`;
+
+                const stdBtnHTML = fileAvailabilityCache[stdFile] === false 
+                    ? '' 
+                    : `<a href="${stdFile}" download class="download-btn" data-check-file="${stdFile}" style="${fileAvailabilityCache[stdFile] ? 'display: inline-flex;' : 'display: none;'}">⬇ Estándar</a>`;
+
+                const smallBtnHTML = fileAvailabilityCache[smallFile] === false 
+                    ? '' 
+                    : `<a href="${smallFile}" download class="download-btn" data-check-file="${smallFile}" style="${fileAvailabilityCache[smallFile] ? 'display: inline-flex;' : 'display: none;'}">⬇ Small</a>`;
+
                 card.innerHTML = `
                     <div class="version-header">
                         <div class="version-title">
@@ -428,8 +440,8 @@
                             ${latestBadgeHTML}
                         </div>
                         <span class="module-chip">${highlightText(release.module, currentSearch)}</span>
-                        <a href="${release.version}.zip" download class="download-btn">⬇ Estándar</a>
-                        <a href="${release.version}s.zip" download class="download-btn">⬇ Small</a>
+                        ${stdBtnHTML}
+                        ${smallBtnHTML}
                         <span class="date">${formatDate(release.date)}</span>
                     </div>
                     <ul class="changes-list">
@@ -438,9 +450,57 @@
                 `;
                 timelineEl.appendChild(card);
             });
+
+            verifyPendingButtons();
         }
 
         // 3. Funciones de utilidad
+        const fileAvailabilityCache = {};
+        const pendingFileChecks = new Set();
+
+        function updateButtonsForFile(file, exists) {
+            document.querySelectorAll('[data-check-file]').forEach(el => {
+                if (el.getAttribute('data-check-file') === file) {
+                    if (exists) {
+                        el.style.display = 'inline-flex';
+                    } else {
+                        el.remove();
+                    }
+                }
+            });
+        }
+
+        function checkFileExists(file) {
+            if (fileAvailabilityCache[file] !== undefined) {
+                updateButtonsForFile(file, fileAvailabilityCache[file]);
+                return;
+            }
+            if (pendingFileChecks.has(file)) return;
+            pendingFileChecks.add(file);
+
+            fetch(file, { method: 'HEAD', cache: 'no-cache' })
+                .then(res => {
+                    const exists = res.ok;
+                    fileAvailabilityCache[file] = exists;
+                    pendingFileChecks.delete(file);
+                    updateButtonsForFile(file, exists);
+                })
+                .catch(() => {
+                    fileAvailabilityCache[file] = false;
+                    pendingFileChecks.delete(file);
+                    updateButtonsForFile(file, false);
+                });
+        }
+
+        function verifyPendingButtons() {
+            document.querySelectorAll('[data-check-file]').forEach(el => {
+                const file = el.getAttribute('data-check-file');
+                if (file) {
+                    checkFileExists(file);
+                }
+            });
+        }
+
         function formatDate(dateStr) {
             const options = { year: 'numeric', month: 'long', day: 'numeric' };
             const date = new Date(dateStr + 'T12:00:00Z'); // Evitar timezone offset issues
